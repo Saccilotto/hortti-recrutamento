@@ -1,3 +1,3 @@
 # Hortti Recrutamento - Template
 
-Template mínimo para o desafio. Veja o PDF para instruções completas.
+Template mínimo para o desafio. Veja o Forms para instruções completas.
