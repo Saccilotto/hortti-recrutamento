@@ -1,0 +1,31 @@
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfvars
+**/.terraformrc
+**/terraform.rc
+**/*.tfplan
+
+# Ansible
+**/inventory/hosts.ini
+**/vars/secrets.yml
+**/.vault_pass
+**/*.retry
+
+# SSH Keys
+**/*.pem
+**/*.key
+!**/*.key.pub
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -275,6 +275,71 @@ destination: (req, file, cb) => {
 
 ---
 
+## 🚀 Deploy em Produção
+
+### Infraestrutura
+
+- **Cloud:** AWS EC2 t2.medium (us-east-2)
+- **OS:** Ubuntu 22.04 LTS
+- **DNS:** Cloudflare
+- **SSL:** Let's Encrypt (Traefik)
+- **IaC:** Terraform + Ansible
+- **CI/CD:** GitHub Actions
+- **Registry:** GitHub Container Registry
+
+### Domínios
+
+- **Frontend:** https://cantinhoverde.app.br
+- **Backend:** https://api.cantinhoverde.app.br
+- **Traefik Dashboard:** https://traefik.cantinhoverde.app.br
+
+### Quick Deploy
+
+```bash
+# 1. Setup inicial (uma vez)
+make complete-setup
+
+# 2. Configurar variáveis
+vim infra/terraform/terraform.tfvars
+vim infra/ansible/vars/secrets.yml
+
+# 3. Provisionar infraestrutura
+make infra-plan
+make infra-apply
+
+# 4. Deploy da aplicação
+make prod-deploy
+```
+
+### Documentação Completa
+
+- [Guia de Deploy](docs/DEPLOYMENT.md) - Instruções completas
+- [GitHub Secrets](docs/SECRETS.md) - Configuração de CI/CD
+- [Endpoints API](docs/ENDPOINTS.md) - Documentação da API
+
+### Comandos Úteis
+
+```bash
+# Infraestrutura
+make infra-plan          # Planejar mudanças
+make infra-apply         # Aplicar infraestrutura
+make infra-output        # Ver outputs (IPs, URLs)
+
+# Deploy
+make deploy              # Deploy com Ansible
+make deploy-check        # Verificar conectividade
+
+# Produção
+make prod-status         # Status dos containers
+make prod-logs           # Logs em tempo real
+make prod-restart        # Reiniciar aplicação
+
+# Docker Images
+make docker-build-push   # Build e push para GHCR
+```
+
+---
+
 ## 📧 Contato
 
 Repositório compartilhado com @cassiowt conforme solicitado.
