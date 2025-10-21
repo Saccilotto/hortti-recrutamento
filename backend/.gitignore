@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build
+dist/
+build/
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment
+.env
+
+# Logs
+logs/
+*.log
+
+# Test
+test-results/
+
+# Misc
+.DS_Store
