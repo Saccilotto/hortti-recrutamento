@@ -1,0 +1,184 @@
+---
+# ============================================
+# Hortti Inventory - Deployment Playbook
+# ============================================
+- name: Deploy Hortti Inventory to Production
+  hosts: production
+  become: yes
+  gather_facts: yes
+
+  vars_files:
+    - vars/secrets.yml
+
+  vars:
+    app_name: hortti-inventory
+    app_dir: /opt/hortti-inventory
+    app_user: ubuntu
+    docker_registry: ghcr.io
+    github_username: "{{ github_repo_owner }}"
+    image_tag: "{{ deploy_image_tag | default('latest') }}"
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+          - python3-setuptools
+        state: present
+
+  tasks:
+    # ============================================
+    # Docker Setup
+    # ============================================
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Add user to docker group
+      user:
+        name: "{{ app_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ============================================
+    # Application Directory
+    # ============================================
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Create backend/db directory
+      file:
+        path: "{{ app_dir }}/backend/db"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    # ============================================
+    # Copy Files
+    # ============================================
+    - name: Copy docker-compose-prod.yml
+      template:
+        src: templates/docker-compose-prod.yml.j2
+        dest: "{{ app_dir }}/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+
+    - name: Copy .env file
+      template:
+        src: templates/env.prod.j2
+        dest: "{{ app_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0600'
+
+    - name: Copy init.sql
+      copy:
+        src: "{{ playbook_dir }}/../../backend/db/init.sql"
+        dest: "{{ app_dir }}/backend/db/init.sql"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+
+    # ============================================
+    # Docker Registry Login
+    # ============================================
+    - name: Login to GitHub Container Registry
+      docker_login:
+        registry: "{{ docker_registry }}"
+        username: "{{ github_username }}"
+        password: "{{ github_token }}"
+        reauthorize: yes
+      become_user: "{{ app_user }}"
+
+    # ============================================
+    # Deploy Application
+    # ============================================
+    - name: Pull Docker images
+      command: docker compose pull
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Stop existing containers
+      command: docker compose down
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      ignore_errors: yes
+
+    - name: Start application
+      command: docker compose up -d
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Wait for services to be healthy
+      command: docker compose ps
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      register: compose_ps
+      until: compose_ps.rc == 0
+      retries: 10
+      delay: 10
+
+    # ============================================
+    # Cleanup
+    # ============================================
+    - name: Remove unused Docker images
+      command: docker image prune -af
+      become_user: "{{ app_user }}"
+
+    - name: Remove unused volumes
+      command: docker volume prune -f
+      become_user: "{{ app_user }}"
+
+  post_tasks:
+    - name: Display deployment info
+      debug:
+        msg:
+          - "✅ Deployment completed successfully!"
+          - "Frontend: https://{{ frontend_domain }}"
+          - "Backend: https://{{ backend_domain }}"
+          - "Traefik Dashboard: https://{{ traefik_domain }}"
+          - "Image tag: {{ image_tag }}"

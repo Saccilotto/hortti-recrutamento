@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Traefik - Reverse Proxy & SSL
+  # ============================================
+  traefik:
+    image: traefik:v2.11
+    container_name: hortti-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - hortti-network
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - CF_ZONE_API_TOKEN=${CF_ZONE_API_TOKEN}
+    command:
+      # API and Dashboard
+      - --api=true
+      - --api.dashboard=true
+      # Logging
+      - --log.level=INFO
+      - --accesslog=true
+      # Docker provider
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=hortti-network
+      # Entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # HTTP to HTTPS redirect
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Certificate Resolver (Let's Encrypt)
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.email={{ acme_email }}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    labels:
+      # Dashboard
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`{{ traefik_domain }}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls=true"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # Dashboard Auth
+      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users={{ traefik_dashboard_auth }}"
+
+  # ============================================
+  # PostgreSQL Database (Production)
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: hortti-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      POSTGRES_DB: {{ postgres_db }}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - hortti-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ postgres_user }} -d {{ postgres_db }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend - NestJS (Production Build)
+  # ============================================
+  backend:
+    image: {{ docker_registry }}/{{ github_username }}/{{ app_name }}-backend:{{ image_tag }}
+    container_name: hortti-backend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # Database
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: {{ postgres_user }}
+      DB_PASSWORD: {{ postgres_password }}
+      DB_DATABASE: {{ postgres_db }}
+      DB_SYNCHRONIZE: "false"
+      DB_LOGGING: "false"
+      DB_AUTO_LOAD_ENTITIES: "true"
+      # JWT
+      JWT_SECRET: {{ jwt_secret }}
+      JWT_EXPIRATION: 1d
+      JWT_REFRESH_SECRET: {{ jwt_refresh_secret }}
+      JWT_REFRESH_EXPIRATION: 7d
+      # CORS
+      CORS_ORIGIN: https://{{ frontend_domain }}
+      # Bcrypt
+      BCRYPT_ROUNDS: 12
+      # Uploads
+      UPLOAD_DEST: /usr/src/app/uploads
+      UPLOAD_MAX_FILE_SIZE: 10485760
+    volumes:
+      - backend_uploads:/usr/src/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - hortti-network
+    labels:
+      - "traefik.enable=true"
+      # HTTP Router
+      - "traefik.http.routers.backend.rule=Host(`{{ backend_domain }}`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      # Service
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+      # CORS Headers
+      - "traefik.http.middlewares.backend-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH"
+      - "traefik.http.middlewares.backend-cors.headers.accesscontrolalloworiginlist=https://{{ frontend_domain }}"
+      - "traefik.http.middlewares.backend-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.backend-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.backend-cors.headers.accesscontrolmaxage=100"
+      - "traefik.http.routers.backend.middlewares=backend-cors"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Frontend - Next.js (Production Build)
+  # ============================================
+  frontend:
+    image: {{ docker_registry }}/{{ github_username }}/{{ app_name }}-frontend:{{ image_tag }}
+    container_name: hortti-frontend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://{{ backend_domain }}/api
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - hortti-network
+    labels:
+      - "traefik.enable=true"
+      # HTTP Router
+      - "traefik.http.routers.frontend.rule=Host(`{{ frontend_domain }}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      # Service
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      # Security Headers
+      - "traefik.http.middlewares.frontend-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.frontend-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.frontend-headers.headers.stsPreload=true"
+      - "traefik.http.routers.frontend.middlewares=frontend-headers"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  hortti-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  traefik_letsencrypt:
+    driver: local
