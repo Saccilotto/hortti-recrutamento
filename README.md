@@ -22,26 +22,52 @@ Sistema fullstack para gestão de inventário do "Cantinho Verde" com NestJS, Ne
 
 ## 🚀 Como Executar
 
-### Com Docker (Recomendado)
+### Setup Inicial
 
 ```bash
-# Desenvolvimento (hot-reload)
+# Gerar arquivo .env com credenciais seguras
+make setup
+```
+
+### Com Make (Recomendado)
+
+```bash
+# Dev Local (hot-reload com volumes)
+make dev-local
+
+# Dev Container (build otimizado)
+make dev-container
+
+# Parar containers
+make down
+
+# Ver logs
+make logs
+```
+
+### Com Docker Compose
+
+```bash
+# Dev Local
 docker compose -f docker-compose-local.yml up
 
-# Produção (otimizado)
+# Dev Container
 docker compose -f docker-compose-container.yml up --build
 ```
 
-**URLs:** Frontend [http://localhost:3000](http://localhost:3000) | Backend [http://localhost:3001](http://localhost:3001)
+**URLs:** Frontend [http://localhost:3000](http://localhost:3000) | Backend [http://localhost:3001/api](http://localhost:3001/api)
 
 ### Local (sem Docker)
 
 ```bash
+# Instalar dependências
+make install
+
 # Backend
-cd backend && npm install && npm run start:dev
+cd backend && npm run start:dev
 
 # Frontend
-cd frontend && npm install && npm run dev
+cd frontend && npm run dev
 ```
 
 ## 📡 Endpoints Principais
