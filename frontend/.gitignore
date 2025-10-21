@@ -4,12 +4,14 @@ package-lock.json
 
 # Next.js
 .next/
+.next.*/
 out/
 next-env.d.ts
 
 # Build
 build/
 dist/
+dist.*/
 
 # Environment
 .env

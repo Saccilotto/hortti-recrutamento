@@ -4,6 +4,7 @@ package-lock.json
 
 # Build
 dist/
+dist.*/
 build/
 
 # Coverage
