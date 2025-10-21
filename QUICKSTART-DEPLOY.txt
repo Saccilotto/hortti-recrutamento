@@ -1,0 +1,193 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    HORTTI INVENTORY - DEPLOY RÁPIDO                      ║
+║                    cantinhoverde.app.br - Produção                       ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+🚀 DEPLOY EM 5 PASSOS
+═════════════════════
+
+1️⃣  SETUP INICIAL (UMA VEZ)
+──────────────────────────
+
+# Criar backend Terraform (S3 + DynamoDB)
+make infra-setup-backend
+
+# Gerar chave SSH
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/hortti-prod-key
+
+# Configurar AWS CLI
+aws configure
+# Região: us-east-2
+# Access Key ID: <seu_key_id>
+# Secret Access Key: <seu_secret>
+
+
+2️⃣  CONFIGURAR VARIÁVEIS
+─────────────────────────
+
+# Terraform
+cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
+vim infra/terraform/terraform.tfvars
+
+Preencher:
+  - ssh_public_key      (cat ~/.ssh/hortti-prod-key.pub)
+  - allowed_ssh_cidr    (curl ifconfig.me => SEU_IP/32)
+  - cloudflare_api_token
+  - cloudflare_zone_id
+
+# Ansible
+cp infra/ansible/vars/secrets.yml.example infra/ansible/vars/secrets.yml
+vim infra/ansible/vars/secrets.yml
+
+Gerar senhas:
+  - postgres_password:     openssl rand -base64 32
+  - jwt_secret:            openssl rand -base64 32
+  - jwt_refresh_secret:    openssl rand -base64 32
+  - traefik_dashboard_auth: htpasswd -nb admin SuaSenha
+
+
+3️⃣  PROVISIONAR INFRAESTRUTURA
+────────────────────────────────
+
+make infra-init      # Inicializar Terraform
+make infra-plan      # Ver o que será criado
+make infra-apply     # Criar recursos (confirmar com ENTER)
+
+# Anotar IP da EC2
+make infra-output
+
+# Atualizar inventory Ansible
+vim infra/ansible/inventory/hosts.ini
+# Trocar YOUR_EC2_PUBLIC_IP pelo IP exibido acima
+
+
+4️⃣  BUILD E PUSH IMAGENS
+──────────────────────────
+
+# Configurar variáveis
+export GITHUB_USER="seu-usuario-github"
+export GITHUB_TOKEN="ghp_seu_token_aqui"
+
+# Build + Push
+make docker-login
+make docker-build-push
+
+
+5️⃣  DEPLOY APLICAÇÃO
+──────────────────────
+
+# Testar conectividade
+make deploy-check
+
+# Deploy completo
+make deploy
+
+# Verificar
+make prod-status
+make prod-logs
+
+
+✅ VERIFICAÇÃO FINAL
+═══════════════════
+
+Acessar URLs (aguardar 2-3 minutos para SSL):
+
+  ✓ https://cantinhoverde.app.br
+  ✓ https://api.cantinhoverde.app.br/api/health
+  ✓ https://traefik.cantinhoverde.app.br
+    User: admin / Password: (definida no htpasswd)
+
+
+📋 COMANDOS ÚTEIS
+═════════════════
+
+# Ver IP e URLs
+make infra-output
+
+# Status da aplicação
+make prod-status
+
+# Logs em tempo real
+make prod-logs
+
+# Reiniciar
+make prod-restart
+
+# SSH na EC2
+ssh -i ~/.ssh/hortti-prod-key.pem ubuntu@<IP_DA_EC2>
+
+
+🔄 ATUALIZAR APLICAÇÃO
+══════════════════════
+
+Opção 1 - Local:
+  make prod-deploy
+
+Opção 2 - GitHub Actions:
+  1. Push na branch main (build automático)
+  2. Actions → Deploy to Production → Run workflow
+  3. Terraform: plan
+  4. Deploy app: true
+  5. Image tag: latest
+
+Opção 3 - SSH Manual:
+  ssh -i ~/.ssh/hortti-prod-key.pem ubuntu@<IP>
+  cd /opt/hortti-inventory
+  docker compose pull
+  docker compose up -d
+
+
+⚠️  DESTRUIR INFRAESTRUTURA
+═══════════════════════════
+
+# CUIDADO: Isso apaga TUDO!
+make infra-destroy
+
+
+🐛 TROUBLESHOOTING RÁPIDO
+═════════════════════════
+
+Problema: SSL não funciona
+  → dig cantinhoverde.app.br (deve mostrar IP da EC2)
+  → Cloudflare: DNS only (proxy OFF)
+  → docker compose logs traefik | grep acme
+
+Problema: Containers não sobem
+  → ssh ubuntu@IP
+  → docker compose ps
+  → docker compose logs
+  → cat .env (verificar variáveis)
+
+Problema: Ansible não conecta
+  → chmod 600 ~/.ssh/hortti-prod-key.pem
+  → ssh -vvv -i ~/.ssh/hortti-prod-key.pem ubuntu@IP
+  → Verificar security group (porta 22)
+
+Problema: Terraform locked
+  → cd infra/terraform
+  → terraform force-unlock LOCK_ID
+
+
+📚 DOCUMENTAÇÃO COMPLETA
+═══════════════════════
+
+  docs/DEPLOYMENT.md      - Guia detalhado com troubleshooting
+  docs/SECRETS.md         - GitHub Secrets para CI/CD
+  docs/INFRASTRUCTURE.md  - Arquitetura e componentes
+
+
+💰 CUSTOS
+═════════
+
+  ~$36.94/mês (EC2 t2.medium + EBS + S3 + DynamoDB)
+
+  Reduzir custos:
+    - Parar EC2 quando não usar (stop/start)
+    - Usar t2.micro para staging ($8.47/mês)
+
+
+════════════════════════════════════════════════════════════════════════════
+
+Para suporte, consulte: docs/DEPLOYMENT.md
+
+════════════════════════════════════════════════════════════════════════════
