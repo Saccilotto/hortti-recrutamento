@@ -1,21 +1,13 @@
-import useSWR from 'swr'
-
-const fetcher = (url: string) => fetch(url).then(r => r.json())
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Loading from '../components/Loading';
 
 export default function Home() {
-  const { data, error } = useSWR('http://localhost:3001/products', fetcher)
+  const router = useRouter();
 
-  if (error) return <div>Falha ao carregar</div>
-  if (!data) return <div>Carregando...</div>
+  useEffect(() => {
+    router.push('/products');
+  }, [router]);
 
-  return (
-    <div style={{ padding: 24 }}>
-      <h1>Hortti Inventory</h1>
-      <ul>
-        {data.map((p: any) => (
-          <li key={p.id}>{p.name} — {p.category} — R$ {p.price}</li>
-        ))}
-      </ul>
-    </div>
-  )
+  return <Loading />;
 }
