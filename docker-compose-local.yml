@@ -1,36 +1,109 @@
 version: '3.8'
+
 services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
   db:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: hortti-db-local
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: hortti_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ./backend/db:/docker-entrypoint-initdb.d
+      - postgres_data_local:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - hortti-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hortti_inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend - NestJS (Development with Hot Reload)
+  # ============================================
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hortti-backend-local
+    restart: unless-stopped
     command: npm run start:dev
     volumes:
       - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
     ports:
-      - "3001:3001"
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASS: postgres
-      DB_NAME: hortti_db
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${BACKEND_PORT:-3001}
+      # Database
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_LOGGING: ${DB_LOGGING:-true}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1d}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      # Bcrypt
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      # Uploads
+      UPLOAD_DEST: ${UPLOAD_DEST:-./uploads}
+      UPLOAD_MAX_FILE_SIZE: ${UPLOAD_MAX_FILE_SIZE:-5242880}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    networks:
+      - hortti-network
+
+  # ============================================
+  # Frontend - Next.js (Development with Hot Reload)
+  # ============================================
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hortti-frontend-local
+    restart: unless-stopped
     command: npm run dev
     volumes:
       - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/.next
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     depends_on:
       - backend
+    networks:
+      - hortti-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  hortti-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data_local:
+    driver: local

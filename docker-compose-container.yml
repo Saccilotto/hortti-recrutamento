@@ -1,74 +1,116 @@
 version: '3.8'
 
 services:
+  # ============================================
+  # PostgreSQL Database (Production)
+  # ============================================
   db:
     image: postgres:15-alpine
-    container_name: hortti-db
+    container_name: hortti-db-prod
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: hortti_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/db:/docker-entrypoint-initdb.d
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - hortti-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hortti_inventory"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ============================================
+  # Backend - NestJS (Production Build)
+  # ============================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: hortti-backend
+    container_name: hortti-backend-prod
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASS: postgres
-      DB_NAME: hortti_db
-      JWT_SECRET: your-secret-key-change-in-production
+      PORT: ${BACKEND_PORT:-3001}
+      # Database
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SYNCHRONIZE: "false"
+      DB_LOGGING: "false"
+      DB_AUTO_LOAD_ENTITIES: "true"
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1d}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      # Bcrypt
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      # Uploads
+      UPLOAD_DEST: ${UPLOAD_DEST:-./uploads}
+      UPLOAD_MAX_FILE_SIZE: ${UPLOAD_MAX_FILE_SIZE:-5242880}
+    volumes:
+      - backend_uploads:/usr/src/app/uploads
     depends_on:
       db:
         condition: service_healthy
     networks:
       - hortti-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # ============================================
+  # Frontend - Next.js (Production Build)
+  # ============================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-    container_name: hortti-frontend
+    container_name: hortti-frontend-prod
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - hortti-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+# ============================================
+# Networks
+# ============================================
 networks:
   hortti-network:
     driver: bridge
 
+# ============================================
+# Volumes
+# ============================================
 volumes:
   postgres_data:
+    driver: local
+  backend_uploads:
     driver: local
