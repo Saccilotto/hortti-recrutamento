@@ -1,0 +1,209 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_action:
+        description: 'Terraform action (plan/apply/destroy)'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      deploy_app:
+        description: 'Deploy application with Ansible'
+        required: true
+        default: 'true'
+        type: boolean
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: 'latest'
+
+env:
+  AWS_REGION: us-east-2
+  TF_VERSION: 1.5.0
+  ANSIBLE_VERSION: 2.15
+
+jobs:
+  terraform:
+    name: Terraform Infrastructure
+    runs-on: ubuntu-latest
+    if: inputs.terraform_action != 'skip'
+    outputs:
+      ec2_public_ip: ${{ steps.tf_output.outputs.ec2_ip }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Create terraform.tfvars
+        working-directory: infra/terraform
+        run: |
+          cat > terraform.tfvars <<EOF
+          environment          = "prod"
+          project_name         = "hortti-inventory"
+          aws_region           = "${{ env.AWS_REGION }}"
+          instance_type        = "t2.medium"
+          ssh_key_name         = "hortti-prod-key"
+          ssh_public_key       = "${{ secrets.SSH_PUBLIC_KEY }}"
+          allowed_ssh_cidr     = ["${{ secrets.ALLOWED_SSH_CIDR }}"]
+          cloudflare_api_token = "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+          cloudflare_zone_id   = "${{ secrets.CLOUDFLARE_ZONE_ID }}"
+          domain_name          = "cantinhoverde.app.br"
+          frontend_subdomain   = ""
+          backend_subdomain    = "api"
+          traefik_subdomain    = "traefik"
+          EOF
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infra/terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: inputs.terraform_action == 'plan' || inputs.terraform_action == 'apply'
+        working-directory: infra/terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.terraform_action == 'apply'
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: inputs.terraform_action == 'destroy'
+        working-directory: infra/terraform
+        run: terraform destroy -auto-approve
+
+      - name: Get Terraform Outputs
+        if: inputs.terraform_action == 'apply'
+        id: tf_output
+        working-directory: infra/terraform
+        run: |
+          echo "ec2_ip=$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: inputs.deploy_app && inputs.terraform_action == 'apply'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible==${{ env.ANSIBLE_VERSION }}
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/hortti-prod-key.pem
+          chmod 600 ~/.ssh/hortti-prod-key.pem
+
+      - name: Create Ansible inventory
+        working-directory: infra/ansible/inventory
+        run: |
+          cat > hosts.ini <<EOF
+          [production]
+          hortti-prod ansible_host=${{ needs.terraform.outputs.ec2_public_ip }}
+
+          [production:vars]
+          ansible_user=ubuntu
+          ansible_ssh_private_key_file=~/.ssh/hortti-prod-key.pem
+          ansible_python_interpreter=/usr/bin/python3
+          EOF
+
+      - name: Create Ansible secrets
+        working-directory: infra/ansible/vars
+        run: |
+          cat > secrets.yml <<EOF
+          ---
+          github_repo_owner: "${{ github.repository_owner }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          frontend_domain: "cantinhoverde.app.br"
+          backend_domain: "api.cantinhoverde.app.br"
+          traefik_domain: "traefik.cantinhoverde.app.br"
+          postgres_user: "${{ secrets.POSTGRES_USER }}"
+          postgres_password: "${{ secrets.POSTGRES_PASSWORD }}"
+          postgres_db: "${{ secrets.POSTGRES_DB }}"
+          jwt_secret: "${{ secrets.JWT_SECRET }}"
+          jwt_refresh_secret: "${{ secrets.JWT_REFRESH_SECRET }}"
+          cloudflare_dns_token: "${{ secrets.CLOUDFLARE_DNS_TOKEN }}"
+          cloudflare_zone_token: "${{ secrets.CLOUDFLARE_ZONE_TOKEN }}"
+          acme_email: "${{ secrets.ACME_EMAIL }}"
+          traefik_dashboard_auth: "${{ secrets.TRAEFIK_DASHBOARD_AUTH }}"
+          EOF
+
+      - name: Wait for EC2 to be ready
+        run: |
+          echo "Waiting for EC2 instance to be ready..."
+          for i in {1..30}; do
+            if ssh -o StrictHostKeyChecking=no -i ~/.ssh/hortti-prod-key.pem ubuntu@${{ needs.terraform.outputs.ec2_public_ip }} echo "ready"; then
+              echo "EC2 is ready!"
+              break
+            fi
+            echo "Attempt $i: EC2 not ready yet, waiting..."
+            sleep 10
+          done
+
+      - name: Run Ansible playbook
+        working-directory: infra/ansible
+        run: |
+          ansible-playbook playbook.yml \
+            -i inventory/hosts.ini \
+            -e "deploy_image_tag=${{ inputs.image_tag }}"
+
+      - name: Verify deployment
+        run: |
+          echo "Checking services health..."
+          sleep 30
+          curl -f https://cantinhoverde.app.br || echo "Frontend not ready yet"
+          curl -f https://api.cantinhoverde.app.br/api/health || echo "Backend not ready yet"
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [terraform, deploy]
+    if: always()
+
+    steps:
+      - name: Deployment Success
+        if: needs.deploy.result == 'success'
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Frontend: https://cantinhoverde.app.br"
+          echo "Backend: https://api.cantinhoverde.app.br"
+          echo "Traefik: https://traefik.cantinhoverde.app.br"
+
+      - name: Deployment Failed
+        if: needs.deploy.result == 'failure'
+        run: |
+          echo "❌ Deployment failed!"
+          exit 1
