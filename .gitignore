@@ -5,6 +5,9 @@
 .env.test.local
 .env.production.local
 
+# Generated files
+backend/db/init.sql
+
 # OS
 .DS_Store
 Thumbs.db

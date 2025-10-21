@@ -72,13 +72,9 @@ CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
 -- SEEDS: Dados Iniciais
 -- ============================================
 
--- USUÁRIO PADRÃO
--- Email: admin@cantinhoverde.com
--- Senha: Admin@123
--- Senha hasheada com bcrypt (rounds: 10)
 INSERT INTO users (email, password, name, role) VALUES
-('admin@cantinhoverde.com', '$2b$10$rZ5qYxK8vQ5ZQHj3yYxqxO5zK9L5QZKjYxQ5yYxqxO5zK9L5QZKjY', 'Administrador', 'admin'),
-('user@cantinhoverde.com', '$2b$10$rZ5qYxK8vQ5ZQHj3yYxqxO5zK9L5QZKjYxQ5yYxqxO5zK9L5QZKjY', 'Usuário Teste', 'user')
+('admin@cantinhoverde.com', '$2b$10$DCEZS5l6nXBZidwz3hV38ug7zgEqs4E6rOIL72r4Dh92SYotXYdHu', 'Administrador', 'admin'),
+('user@cantinhoverde.com', '$2b$10$eFqhgmDk9cKjt2X1darQsu24Yq4IFm62w8Vd1seHICMzOscG/VB0C', 'Usuário Teste', 'user')
 ON CONFLICT (email) DO NOTHING;
 
 -- PRODUTOS INICIAIS - FRUTAS

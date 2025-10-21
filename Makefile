@@ -20,7 +20,6 @@ help:
 	@echo ''
 	@echo '${YELLOW}Desenvolvimento:${RESET}'
 	@echo '  ${GREEN}make dev-local${RESET}      - Inicia dev local (hot-reload com volumes)'
-	@echo '  ${GREEN}make dev-container${RESET}  - Inicia dev container (build otimizado)'
 	@echo '  ${GREEN}make down${RESET}           - Para todos os containers'
 	@echo '  ${GREEN}make logs${RESET}           - Exibe logs de todos os containers'
 	@echo ''
@@ -52,19 +51,9 @@ dev-local-detach:
 	@echo "${GREEN}Containers rodando em background!${RESET}"
 	@echo "Use 'make logs' para ver os logs"
 
-dev-container:
-	@echo "${GREEN}Iniciando dev container (build otimizado)...${RESET}"
-	docker compose -f docker-compose-container.yml up --build
-
-dev-container-detach:
-	@echo "${GREEN}Iniciando dev container (background)...${RESET}"
-	docker compose -f docker-compose-container.yml up -d --build
-	@echo "${GREEN}Containers rodando em background!${RESET}"
-
 down:
 	@echo "${YELLOW}Parando containers...${RESET}"
 	docker compose -f docker-compose-local.yml down
-	docker compose -f docker-compose-container.yml down
 	@echo "${GREEN}Todos os containers foram parados!${RESET}"
 
 # ============================================
