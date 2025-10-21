@@ -657,6 +657,358 @@ seção de uso de IA e decisões técnicas
 
 ---
 
+---
+
+## Sessão 7: Continuação - Correção de Bugs e Melhorias
+
+### Data: 2025-10-21 — Sessão 7 (Continuação de Contexto)
+
+> **Nota:** Esta sessão continuou de uma conversa anterior que ficou sem contexto. O resumo anterior foi fornecido para dar continuidade ao trabalho.
+
+#### Prompt 7.1: Reiniciar Backend com Correções
+
+**Contexto:** Sessão anterior havia instalado `@nestjs/serve-static` e feito ajustes no Multer, mas containers precisavam ser reiniciados.
+
+```text
+Continue de onde paramos - reinicie o backend e teste o upload de imagens
+```
+
+**Ação Executada:**
+
+- Reiniciado container backend: `docker restart hortti-backend-local`
+- Verificado logs do backend para confirmar ServeStaticModule carregado
+- Testado acesso direto às imagens via curl
+- Identificado que uploads estavam vazios
+
+**Arquivos Verificados:**
+
+- `/usr/src/app/uploads/` (vazio no container)
+- Banco de dados PostgreSQL (URL com `/uploads/undefined`)
+
+**Problemas Encontrados:**
+
+1. **Diretório uploads vazio:** Nenhum arquivo sendo salvo
+2. **URL inválida no banco:** `/uploads/undefined` ao invés do filename correto
+3. **Erro ao deletar arquivo:** `ENOENT: no such file or directory, unlink 'uploads/undefined'`
+
+**Logs Relevantes:**
+
+```log
+Erro ao deletar arquivo: [Error: ENOENT: no such file or directory, unlink 'uploads/undefined']
+📁 Static files at http://localhost:3001/uploads
+```
+
+**Resultado:** ⚠️ ServeStaticModule funcionando, mas upload falha
+
+---
+
+#### Prompt 7.2: Corrigir Upload com Path Absoluto
+
+**Problema Identificado:** Multer usando path relativo `./uploads` que pode não resolver corretamente
+
+```text
+O file está undefined no controller. Corrija a configuração do Multer para usar path absoluto.
+```
+
+**Ação Executada:**
+
+- Modificado `upload.module.ts` para converter paths relativos em absolutos
+- Adicionado import `join` do módulo `path`
+- Transformado `destination` de string para callback function
+- Exportado `MulterModule` para uso em ProductsModule
+
+**Código Modificado:**
+
+```typescript
+// backend/src/upload/upload.module.ts
+import { join } from 'path';
+
+// Antes:
+destination: configService.get<string>('UPLOAD_DEST', './uploads'),
+
+// Depois:
+destination: (req, file, cb) => {
+  const uploadPath = configService.get<string>('UPLOAD_DEST', './uploads');
+  const absolutePath = uploadPath.startsWith('/')
+    ? uploadPath
+    : join(process.cwd(), uploadPath);
+  cb(null, absolutePath);
+},
+```
+
+**Arquivos Modificados:**
+
+- `backend/src/upload/upload.module.ts` (linhas 5, 15-19, 43)
+- `backend/src/products/products.controller.ts` (linhas 91-93) - adicionado validação de file
+
+**Decisões Técnicas:**
+
+- ✅ Path absoluto via `process.cwd()` + `join()`
+- ✅ Validação se `file` existe antes de processar
+- ✅ Export de `MulterModule` para compartilhar configuração
+
+**Resultado:** ✅ Uploads agora funcionam corretamente
+
+---
+
+#### Prompt 7.3: Automatizar Geração de Bcrypt Hashes
+
+**Contexto:** Usuário reportou que não conseguia fazer login com credenciais padrão
+
+```text
+Usuário: "Infelizmente não consigo logar com as credenciais padrão para atualizar as imagens dos produtos"
+```
+
+**Problema Identificado:** Hashes bcrypt no `init.sql` estavam incorretos/desatualizados
+
+**Solução Implementada:**
+
+1. **Criado sistema de geração automática de hashes**
+2. **Template SQL com variáveis de ambiente**
+3. **Script de setup atualizado**
+
+**Arquivos Criados/Modificados:**
+
+- `backend/db/init.sql.template` - Template com variáveis `${ADMIN_PASSWORD_HASH}` e `${USER_PASSWORD_HASH}`
+- `generate-env.sh` - Adicionada função `generate_bcrypt_hash()`
+- `.env.example` - Adicionados campos para hashes
+- `.gitignore` - Adicionado `backend/db/init.sql` (gerado automaticamente)
+
+**Função de Geração:**
+
+```bash
+generate_bcrypt_hash() {
+  local password=$1
+  local rounds=${2:-10}
+
+  if ! command -v node &> /dev/null; then
+    echo "Erro: Node.js não está instalado"
+    exit 1
+  fi
+
+  node -e "const bcrypt = require('bcrypt'); \
+    bcrypt.hash('${password}', ${rounds}).then(hash => console.log(hash));"
+}
+
+ADMIN_PASSWORD_HASH=$(generate_bcrypt_hash "Admin@123" 10)
+USER_PASSWORD_HASH=$(generate_bcrypt_hash "User@123" 10)
+```
+
+**Template SQL:**
+
+```sql
+INSERT INTO users (email, password, name, role) VALUES
+('admin@cantinhoverde.com', '${ADMIN_PASSWORD_HASH}', 'Administrador', 'admin'),
+('user@cantinhoverde.com', '${USER_PASSWORD_HASH}', 'Usuário Teste', 'user')
+ON CONFLICT (email) DO NOTHING;
+```
+
+**Processo Automatizado:**
+
+1. `bash generate-env.sh` executa
+2. Gera hashes bcrypt via Node.js
+3. Salva hashes em `.env`
+4. Usa `envsubst` para gerar `init.sql` do template
+5. Docker Compose usa `init.sql` gerado
+
+**Decisões Técnicas:**
+
+- ✅ Hashes gerados dinamicamente (segurança)
+- ✅ Template SQL com `envsubst` (automação)
+- ✅ `init.sql` adicionado ao `.gitignore` (não versionar)
+- ✅ Credenciais documentadas em comentários
+
+**Credenciais Padrão:**
+
+- Admin: `admin@cantinhoverde.com` / `Admin@123`
+- User: `user@cantinhoverde.com` / `User@123`
+
+**Resultado:** ✅ Login funcionando após reset do banco
+
+**Comandos de Reset:**
+
+```bash
+docker compose -f docker-compose-local.yml down -v
+docker compose -f docker-compose-local.yml up --build
+```
+
+---
+
+#### Prompt 7.4: Resolver Problema de Exibição de Imagens
+
+**Contexto:** Usuário conseguiu fazer upload, mas imagens não aparecem
+
+```text
+Usuário: "consegui logar, agora a imagem não parece ter sido renderizada propriamente,
+coloquei uma no abacaxi pérola, um arquivo .jpeg"
+```
+
+**Problema Identificado:**
+
+- Upload funcionando ✅ (arquivo salvo em `/usr/src/app/uploads/`)
+- ServeStaticModule funcionando ✅ (`http://localhost:3001/uploads/file.jpeg` acessível)
+- Frontend usando URL relativa ❌ (tenta buscar em `localhost:3000/uploads/`)
+
+**Causa Raiz:** Frontend e Backend em portas diferentes
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3001`
+- Imagem com `src="/uploads/file.jpeg"` → busca em `localhost:3000` ❌
+
+**Solução Implementada:**
+
+Criada função helper `getImageUrl()` para converter URLs relativas em absolutas:
+
+```typescript
+// frontend/lib/api.ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const BASE_URL = API_URL.replace('/api', '');
+
+export function getImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  return `${BASE_URL}${imageUrl}`; // http://localhost:3001/uploads/...
+}
+```
+
+**Arquivos Modificados:**
+
+1. `frontend/lib/api.ts` - Adicionada função `getImageUrl()`
+2. `frontend/pages/products/index.tsx` - Importado e usado `getImageUrl()`
+3. `frontend/pages/products/[id]/edit.tsx` - Importado e usado `getImageUrl()`
+
+**Uso nos Componentes:**
+
+```typescript
+// Antes:
+<img src={product.imageUrl} alt={product.name} />
+
+// Depois:
+<img src={getImageUrl(product.imageUrl) || ''} alt={product.name} />
+```
+
+**Decisões Técnicas:**
+
+- ✅ Helper function centralizado (DRY)
+- ✅ Suporta URLs absolutas e relativas
+- ✅ Usa variável de ambiente `NEXT_PUBLIC_API_URL`
+- ✅ Tratamento de null/undefined
+
+**Fluxo Completo:**
+
+1. Backend salva: `/uploads/abc123.jpeg`
+2. Banco retorna: `/uploads/abc123.jpeg`
+3. Frontend converte: `http://localhost:3001/uploads/abc123.jpeg`
+4. Navegador carrega corretamente ✅
+
+**Resultado:** ✅ Imagens exibidas corretamente
+
+**Teste de Validação:**
+
+```bash
+# Verificar arquivo no container
+docker exec hortti-backend-local ls -la /usr/src/app/uploads/
+
+# Testar URL direto
+curl -I http://localhost:3001/uploads/810ae1a9c06b28eab4f10a5a9e8632a9f10.jpeg
+
+# Acessar frontend
+http://localhost:3000/products
+```
+
+---
+
+#### Prompt 7.5: Documentação Final
+
+```text
+Usuário: "documente utilizando os padrões de sintaxe Markdown nosso percurso até aqui
+que ainda não foi comentado em README.md e docs/PROMPTS.md"
+```
+
+**Ação Executada:**
+
+- Criada seção "🔧 Troubleshooting" no README.md
+- Documentados 3 problemas principais e soluções
+- Atualizado PROMPTS.md com Sessão 7 completa
+- Corrigidos avisos do linter Markdown (MD032, MD034)
+
+**Seções Adicionadas ao README.md:**
+
+1. **Problema: Imagens não exibidas**
+   - Sintoma, causa, solução com código
+   - Links para arquivos modificados
+
+2. **Problema: Login não funciona**
+   - Comandos de reset do banco
+   - Credenciais padrão documentadas
+
+3. **Problema: Upload retorna undefined**
+   - Configuração correta do Multer
+   - Path absoluto vs relativo
+
+**Formato de Documentação:**
+
+- ✅ Markdown válido (sem warnings)
+- ✅ Code blocks com syntax highlighting
+- ✅ Links para linhas específicas do código
+- ✅ Comandos executáveis documentados
+
+**Arquivos Modificados:**
+
+- `README.md` (adicionado troubleshooting)
+- `docs/PROMPTS.md` (sessão 7 completa)
+
+**Resultado:** ✅ Documentação atualizada e completa
+
+---
+
+## Resumo da Sessão 7
+
+### Problemas Resolvidos
+
+| # | Problema | Solução | Status |
+|---|----------|---------|--------|
+| 1 | Upload de imagens falhando | Path absoluto no Multer | ✅ |
+| 2 | Login com credenciais padrão | Geração automática de hashes bcrypt | ✅ |
+| 3 | Imagens não exibidas no frontend | Função `getImageUrl()` helper | ✅ |
+| 4 | Documentação desatualizada | Seção troubleshooting no README | ✅ |
+
+### Arquivos Criados
+
+- `backend/db/init.sql.template` - Template SQL com variáveis
+- Função `generate_bcrypt_hash()` em `generate-env.sh`
+
+### Arquivos Modificados
+
+- `backend/src/upload/upload.module.ts` - Path absoluto
+- `backend/src/products/products.controller.ts` - Validação de file
+- `frontend/lib/api.ts` - Helper `getImageUrl()`
+- `frontend/pages/products/index.tsx` - Uso do helper
+- `frontend/pages/products/[id]/edit.tsx` - Uso do helper
+- `.gitignore` - Adicionado `backend/db/init.sql`
+- `.env.example` - Adicionados hashes bcrypt
+- `README.md` - Seção troubleshooting
+- `docs/PROMPTS.md` - Esta sessão
+
+### Métricas
+
+- **Bugs Corrigidos:** 4
+- **Arquivos Modificados:** 11
+- **Linhas de Código:** ~150
+- **Tempo de Debug:** ~2h
+- **Commits Necessários:** 1-2
+
+### Lições Aprendidas Até Agora
+
+1. **Paths Relativos vs Absolutos:** Sempre usar paths absolutos em configurações de upload
+2. **Cross-Origin Resources:** Frontend/Backend em portas diferentes exigem URLs absolutas
+3. **Bcrypt em Produção:** Nunca hardcodar hashes, sempre gerar dinamicamente
+4. **Documentação Preventiva:** Troubleshooting docs economizam tempo futuro
+
+---
+
 **Última atualização:** 2025-10-21
 **Documentado por:** Assistente IA + Desenvolvedor
-**Versão:** 1.0.0
+**Versão:** 1.1.0

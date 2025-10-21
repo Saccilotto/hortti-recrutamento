@@ -206,6 +206,75 @@ git checkout -b submission/final
 git push origin submission/final
 ```
 
+---
+
+## 🔧 Troubleshooting
+
+### Problema: Imagens não exibidas
+
+**Sintoma:** Ícone genérico de imagem quebrada aparece após upload
+
+**Causa:** Frontend usa URLs relativas (`/uploads/...`) que apontam para `localhost:3000` ao invés de `localhost:3001`
+
+**Solução:** Implementada função `getImageUrl()` que converte URLs relativas em absolutas:
+
+```typescript
+// frontend/lib/api.ts
+export function getImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  return `${BASE_URL}${imageUrl}`; // http://localhost:3001/uploads/...
+}
+```
+
+**Arquivos modificados:**
+
+- [lib/api.ts](frontend/lib/api.ts#L13-L19)
+- [pages/products/index.tsx](frontend/pages/products/index.tsx#L127)
+- [pages/products/[id]/edit.tsx](frontend/pages/products/[id]/edit.tsx#L77)
+
+### Problema: Login com credenciais padrão não funciona
+
+**Sintoma:** Erro 401 ao tentar fazer login com `admin@cantinhoverde.com` / `Admin@123`
+
+**Causa:** Hashes bcrypt hardcoded no init.sql estavam desatualizados
+
+**Solução:** Sistema automatizado de geração de hashes via `generate-env.sh`:
+
+```bash
+# Gera .env com hashes bcrypt automaticamente
+bash generate-env.sh
+
+# Reinicia banco com novos hashes
+docker compose -f docker-compose-local.yml down -v
+docker compose -f docker-compose-local.yml up --build
+```
+
+**Credenciais padrão:**
+
+- Admin: `admin@cantinhoverde.com` / `Admin@123`
+- User: `user@cantinhoverde.com` / `User@123`
+
+### Problema: Upload de arquivo retorna `undefined`
+
+**Sintoma:** URL salva no banco como `/uploads/undefined`
+
+**Causa:** Multer não estava configurado corretamente para usar path absoluto
+
+**Solução:** Ajustada configuração do Multer em [upload.module.ts](backend/src/upload/upload.module.ts#L15-L19):
+
+```typescript
+destination: (req, file, cb) => {
+  const uploadPath = configService.get<string>('UPLOAD_DEST', './uploads');
+  const absolutePath = uploadPath.startsWith('/') ? uploadPath : join(process.cwd(), uploadPath);
+  cb(null, absolutePath);
+}
+```
+
+---
+
 ## 📧 Contato
 
 Repositório compartilhado com @cassiowt conforme solicitado.
