@@ -7,6 +7,7 @@ import Button from '../../../components/Button';
 import ProductForm from '../../../components/ProductForm';
 import { productsService, Product, CreateProductData } from '../../../services/products.service';
 import { useAuth } from '../../../contexts/AuthContext';
+import { getImageUrl } from '../../../lib/api';
 
 export default function EditProduct() {
   const [product, setProduct] = useState<Product | null>(null);
@@ -73,7 +74,7 @@ export default function EditProduct() {
           {product.imageUrl && (
             <div className="mb-4">
               <img
-                src={product.imageUrl}
+                src={getImageUrl(product.imageUrl) || ''}
                 alt={product.name}
                 className="w-48 h-48 object-cover rounded-md"
               />

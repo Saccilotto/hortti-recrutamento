@@ -88,6 +88,10 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    if (!file) {
+      throw new Error('Nenhum arquivo foi enviado');
+    }
+
     const imageUrl = this.uploadService.getFileUrl(file.filename);
     const product = await this.productsService.updateImage(id, imageUrl);
 

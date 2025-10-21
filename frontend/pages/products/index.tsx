@@ -9,6 +9,7 @@ import Select from '../../components/Select';
 import Button from '../../components/Button';
 import { productsService, Product, QueryParams } from '../../services/products.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { getImageUrl } from '../../lib/api';
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -123,7 +124,7 @@ export default function Products() {
                 <div className="aspect-square bg-gray-200 rounded-md mb-4 overflow-hidden">
                   {product.imageUrl ? (
                     <img
-                      src={product.imageUrl}
+                      src={getImageUrl(product.imageUrl) || ''}
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />

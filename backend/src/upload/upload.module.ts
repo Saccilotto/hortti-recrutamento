@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
 
@@ -12,7 +12,11 @@ import { UploadService } from './upload.service';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         storage: diskStorage({
-          destination: configService.get<string>('UPLOAD_DEST', './uploads'),
+          destination: (req, file, cb) => {
+            const uploadPath = configService.get<string>('UPLOAD_DEST', './uploads');
+            const absolutePath = uploadPath.startsWith('/') ? uploadPath : join(process.cwd(), uploadPath);
+            cb(null, absolutePath);
+          },
           filename: (req, file, cb) => {
             const randomName = Array(32)
               .fill(null)
@@ -40,6 +44,6 @@ import { UploadService } from './upload.service';
   ],
   controllers: [UploadController],
   providers: [UploadService],
-  exports: [UploadService],
+  exports: [UploadService, MulterModule],
 })
 export class UploadModule {}

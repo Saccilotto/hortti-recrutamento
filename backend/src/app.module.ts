@@ -31,13 +31,9 @@ import { Product } from './entities/product.entity';
       }),
       inject: [ConfigService],
     }),
-    ServeStaticModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => [{
-        rootPath: join(__dirname, '..', configService.get('UPLOAD_DEST', './uploads')),
-        serveRoot: '/uploads',
-      }],
-      inject: [ConfigService],
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
     AuthModule,
     ProductsModule,
