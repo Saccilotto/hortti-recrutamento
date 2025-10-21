@@ -1,0 +1,45 @@
+import { Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { UploadController } from './upload.controller';
+import { UploadService } from './upload.service';
+
+@Module({
+  imports: [
+    MulterModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        storage: diskStorage({
+          destination: configService.get<string>('UPLOAD_DEST', './uploads'),
+          filename: (req, file, cb) => {
+            const randomName = Array(32)
+              .fill(null)
+              .map(() => Math.round(Math.random() * 16).toString(16))
+              .join('');
+            cb(null, `${randomName}${extname(file.originalname)}`);
+          },
+        }),
+        fileFilter: (req, file, cb) => {
+          const allowedTypes = /jpeg|jpg|png|webp/;
+          const mimeType = allowedTypes.test(file.mimetype);
+          const extName = allowedTypes.test(extname(file.originalname).toLowerCase());
+
+          if (mimeType && extName) {
+            return cb(null, true);
+          }
+          cb(new Error('Apenas imagens são permitidas (jpeg, jpg, png, webp)'), false);
+        },
+        limits: {
+          fileSize: configService.get<number>('UPLOAD_MAX_FILE_SIZE', 5242880),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+  controllers: [UploadController],
+  providers: [UploadService],
+  exports: [UploadService],
+})
+export class UploadModule {}

@@ -1,20 +1,47 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProductModule } from './product/product.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { AuthModule } from './auth/auth.module';
+import { ProductsModule } from './products/products.module';
+import { UploadModule } from './upload/upload.module';
+import { User } from './entities/user.entity';
+import { Product } from './entities/product.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: Number(process.env.DB_PORT) || 5432,
-      username: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASS || 'postgres',
-      database: process.env.DB_NAME || 'hortti_db',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
     }),
-    ProductModule,
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST', 'localhost'),
+        port: configService.get<number>('DB_PORT', 5432),
+        username: configService.get('DB_USERNAME', 'postgres'),
+        password: configService.get('DB_PASSWORD', 'postgres'),
+        database: configService.get('DB_DATABASE', 'hortti_inventory'),
+        entities: [User, Product],
+        synchronize: configService.get('DB_SYNCHRONIZE', 'false') === 'true',
+        logging: configService.get('DB_LOGGING', 'false') === 'true',
+        autoLoadEntities: configService.get('DB_AUTO_LOAD_ENTITIES', 'true') === 'true',
+      }),
+      inject: [ConfigService],
+    }),
+    ServeStaticModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => [{
+        rootPath: join(__dirname, '..', configService.get('UPLOAD_DEST', './uploads')),
+        serveRoot: '/uploads',
+      }],
+      inject: [ConfigService],
+    }),
+    AuthModule,
+    ProductsModule,
+    UploadModule,
   ],
 })
 export class AppModule {}
