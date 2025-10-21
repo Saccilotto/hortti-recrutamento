@@ -1,0 +1,31 @@
+# ============================================
+# Terraform Variables - Production
+# ============================================
+# COPIE ESTE ARQUIVO PARA terraform.tfvars
+# E PREENCHA COM OS VALORES REAIS
+# ============================================
+
+# General
+environment  = "prod"
+project_name = "hortti-inventory"
+
+# AWS
+aws_region    = "us-east-2"
+instance_type = "t2.medium"
+
+# SSH Key
+ssh_key_name   = "hortti-prod-key"
+ssh_public_key = "ssh-rsa AAAAB3NzaC1... seu-email@exemplo.com" # Cole sua chave pública SSH aqui
+
+# Security
+allowed_ssh_cidr = ["0.0.0.0/0"] # IMPORTANTE: Altere para seu IP específico em produção
+
+# Cloudflare
+cloudflare_api_token = "your-cloudflare-api-token-here"
+cloudflare_zone_id   = "your-cloudflare-zone-id-here"
+
+# Domain
+domain_name         = "cantinhoverde.app.br"
+frontend_subdomain  = ""        # Vazio para usar domínio raiz (cantinhoverde.app.br)
+backend_subdomain   = "api"     # api.cantinhoverde.app.br
+traefik_subdomain   = "traefik" # traefik.cantinhoverde.app.br
