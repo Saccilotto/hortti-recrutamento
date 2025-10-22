@@ -4,7 +4,7 @@
 resource "aws_security_group" "hortti_sg" {
   name        = "${var.project_name}-${var.environment}-sg"
   description = "Security group for Hortti Inventory application"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.hortti_vpc.id
 
   # SSH
   ingress {

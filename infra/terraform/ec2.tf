@@ -7,6 +7,7 @@ resource "aws_instance" "hortti_app" {
   instance_type = var.instance_type
   key_name      = aws_key_pair.hortti_key.key_name
 
+  subnet_id              = aws_subnet.hortti_public_subnet.id
   vpc_security_group_ids = [aws_security_group.hortti_sg.id]
 
   # Root volume
@@ -67,5 +68,8 @@ resource "aws_eip" "hortti_eip" {
     }
   )
 
-  depends_on = [aws_instance.hortti_app]
+  depends_on = [
+    aws_instance.hortti_app,
+    aws_internet_gateway.hortti_igw
+  ]
 }

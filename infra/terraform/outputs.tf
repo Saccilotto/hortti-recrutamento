@@ -17,6 +17,19 @@ output "ec2_public_dns" {
 }
 
 # ============================================
+# VPC Outputs
+# ============================================
+output "vpc_id" {
+  description = "ID of the VPC"
+  value       = aws_vpc.hortti_vpc.id
+}
+
+output "subnet_id" {
+  description = "ID of the public subnet"
+  value       = aws_subnet.hortti_public_subnet.id
+}
+
+# ============================================
 # Security Group Outputs
 # ============================================
 output "security_group_id" {
