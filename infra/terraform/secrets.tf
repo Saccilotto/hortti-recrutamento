@@ -47,21 +47,17 @@ resource "random_password" "jwt_refresh_secret" {
 }
 
 # ============================================
-# Traefik Dashboard Password
+# Traefik Dashboard Password (with bcrypt hash)
 # ============================================
-# Use senha fixa "admin" para facilitar acesso ao dashboard
+# Use senha fixa "admin" com hash bcrypt para facilitar acesso ao dashboard
+# Hash gerado com: bcrypt.hashpw(b'admin', bcrypt.gensalt()).decode()
 locals {
   traefik_password = "admin"
-}
-
-resource "random_password" "traefik_password" {
-  length  = 1
-  special = false
-}
-
-# Usar valor fixo ao invés de aleatório
-output "traefik_dashboard_password_output" {
-  value = local.traefik_password
+  # Bcrypt hash for admin:admin
+  # Generated with: python -c "import bcrypt; pw = bcrypt.hashpw(b'admin', bcrypt.gensalt()).decode(); print(f'admin:{pw}')"
+  # For reproducibility, use a fixed bcrypt hash
+  traefik_bcrypt_hash = "$2b$12$.oHqWuhluHhAkgmGP0JtPOmM5LUaXakx6kA6iAcZ/bFbsb9a6J6zC"
+  traefik_dashboard_auth_bcrypt = "admin:${local.traefik_bcrypt_hash}"
 }
 
 # ============================================

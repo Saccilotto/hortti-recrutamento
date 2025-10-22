@@ -123,7 +123,7 @@ output "traefik_password" {
 }
 
 output "traefik_dashboard_auth" {
-  description = "Traefik dashboard auth - admin:admin"
-  value       = "admin:${local.traefik_password}"
+  description = "Traefik dashboard auth with bcrypt hash - for basicauth.users"
+  value       = local.traefik_dashboard_auth_bcrypt
   sensitive   = true
 }
