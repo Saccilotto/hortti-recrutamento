@@ -19,10 +19,25 @@
     image_tag: "{{ deploy_image_tag | default('latest') }}"
 
   pre_tasks:
+    - name: Fix Docker repository configuration if it exists
+      shell: |
+        # Remove conflicting Docker repository entries
+        rm -f /etc/apt/sources.list.d/docker.list
+        rm -f /etc/apt/sources.list.d/docker-ce.list
+        # Clear any duplicate entries
+        sed -i '/download.docker.com/d' /etc/apt/sources.list
+      args:
+        warn: false
+      ignore_errors: yes
+
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      register: apt_update
+      retries: 3
+      delay: 5
+      until: apt_update is success
 
     - name: Install required packages
       apt:
