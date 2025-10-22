@@ -193,7 +193,7 @@ cd backend && npm run test:cov # Cobertura
 
 ### Ferramentas de IA Utilizadas
 
-#### Sessões 1-10: Claude 4.5 Sonnet (Interface Web)
+#### Sessões 1-10: Claude Code 4.5 Sonnet (Interface terminal integrada a extensão vscode)
 
 **Período:** 2025-10-20 a 2025-10-22 (Sessões 1-10)
 
@@ -219,7 +219,7 @@ cd backend && npm run test:cov # Cobertura
 
 ---
 
-#### Sessão 11: GitHub Copilot + Claude 4.5 Sonnet (VS Code)
+#### Sessão 11: GitHub Copilot nativo + modelo Claude 4.5 Sonnet (VS Code)
 
 **Período:** 2025-10-22 (Sessão 11)
 

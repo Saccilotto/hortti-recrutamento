@@ -153,6 +153,30 @@
       pause:
         seconds: 30
 
+    - name: Check container status
+      command: docker compose ps
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      register: containers_status
+      ignore_errors: yes
+
+    - name: Display container status
+      debug:
+        var: containers_status.stdout_lines
+
+    - name: Get backend logs if unhealthy
+      command: docker logs hortti-backend-prod --tail 50
+      become_user: "{{ app_user }}"
+      register: backend_logs
+      ignore_errors: yes
+      when: containers_status.rc != 0
+
+    - name: Display backend logs
+      debug:
+        var: backend_logs.stdout_lines
+      when: containers_status.rc != 0
+
     - name: Wait for services to be healthy
       command: docker compose ps
       args:

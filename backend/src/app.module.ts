@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { UploadModule } from './upload/upload.module';
@@ -39,5 +41,7 @@ import { Product } from './entities/product.entity';
     ProductsModule,
     UploadModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -2702,6 +2702,93 @@ Mesmo conjunto de mudanças aplicado em:
 
 ---
 
+#### Prompt 11.4: SSH Timeout Durante Deploy + Resource Limits
+
+**Contexto:** Deploy falhou com "UNREACHABLE" após 5 minutos rodando `docker compose up`
+
+**Erro:**
+
+```text
+Start application: 302.17s (5 minutos)
+fatal: [hortti-prod]: UNREACHABLE! => msg: 'Data could not be sent to remote host'
+```
+
+**Causa:** `docker compose up` consumindo todos recursos da EC2, travando SSH
+
+**Soluções Implementadas:**
+
+**1. Aumentar Timeouts Ansible:**
+
+`infra/ansible/ansible.cfg`:
+
+```yaml
+timeout: 30s → 600s (10min)
+command_timeout: 600s (novo)
+collections_paths → collections_path (deprecation fix)
+```
+
+`infra/ansible/playbook.yml`:
+
+```yaml
+- name: Start application
+  async: 600  # 10min timeout
+  poll: 10    # checa a cada 10s
+
+- name: Wait for containers to initialize
+  pause: seconds: 30
+
+- name: Wait for services to be healthy
+  retries: 20 (antes: 10)
+  delay: 15s (antes: 10s)
+```
+
+**2. Resource Limits nos Containers:**
+
+EC2 t2.medium (2 vCPUs, 4GB RAM):
+
+| Container | CPU Limit | RAM Limit | Garantido |
+|-----------|-----------|-----------|-----------|
+| Traefik | 0.25 | 256MB | 0.1 CPU, 128MB |
+| PostgreSQL | 0.5 | 512MB | 0.25 CPU, 256MB |
+| Backend | 0.75 | 1GB | 0.5 CPU, 512MB |
+| Frontend | 0.5 | 768MB | 0.25 CPU, 384MB |
+| **Total** | **2.0** | **2.5GB** | **1.1 CPU, 1.28GB** |
+| **Sistema** | **-** | **1.5GB livre** | **0.9 CPU livre** |
+
+Aplicado em:
+
+- `docker-compose-prod.yml`
+- `infra/ansible/templates/docker-compose-prod.yml.j2`
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '0.75'
+      memory: 1024M
+    reservations:
+      cpus: '0.5'
+      memory: 512M
+```
+
+**Benefícios:**
+
+- ✅ Containers não travam servidor
+- ✅ SSH sempre responsivo
+- ✅ Sistema tem recursos garantidos
+- ✅ OOM kill automático se exceder
+
+**Arquivos Modificados:** 4
+
+- `infra/ansible/ansible.cfg`
+- `infra/ansible/playbook.yml`
+- `docker-compose-prod.yml`
+- `infra/ansible/templates/docker-compose-prod.yml.j2`
+
+**Resultado:** Deploy deve completar sem timeout SSH
+
+---
+
 **Última atualização:** 2025-10-22
 **Documentado por:** GitHub Copilot + Claude 4.5 Sonnet (VS Code)
-**Versão:** 1.5.0
+**Versão:** 1.5.1
