@@ -33,6 +33,42 @@ resource "aws_security_group" "hortti_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # PostgreSQL (interno - apenas da própria SG)
+  ingress {
+    description     = "PostgreSQL (internal)"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.hortti_sg.id]
+  }
+
+  # Backend NestJS (interno - apenas da própria SG)
+  ingress {
+    description     = "Backend API (internal)"
+    from_port       = 3001
+    to_port         = 3001
+    protocol        = "tcp"
+    security_groups = [aws_security_group.hortti_sg.id]
+  }
+
+  # Frontend Next.js (interno - apenas da própria SG)
+  ingress {
+    description     = "Frontend (internal)"
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.hortti_sg.id]
+  }
+
+  # Traefik Dashboard (interno - apenas da própria SG)
+  ingress {
+    description     = "Traefik Dashboard (internal)"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.hortti_sg.id]
+  }
+
   # Allow all outbound traffic
   egress {
     description = "Allow all outbound"
