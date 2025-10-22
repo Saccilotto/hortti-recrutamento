@@ -13,6 +13,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
       - CF_ZONE_API_TOKEN=${CF_ZONE_API_TOKEN}
@@ -61,6 +69,14 @@ services:
     image: postgres:15-alpine
     container_name: hortti-db-prod
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     environment:
       POSTGRES_USER: {{ postgres_user }}
       POSTGRES_PASSWORD: {{ postgres_password }}
@@ -84,6 +100,14 @@ services:
     image: {{ docker_registry }}/{{ github_username }}/{{ app_name }}-backend:{{ image_tag }}
     container_name: hortti-backend-prod
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -145,6 +169,14 @@ services:
     image: {{ docker_registry }}/{{ github_username }}/{{ app_name }}-frontend:{{ image_tag }}
     container_name: hortti-frontend-prod
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 384M
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: https://{{ backend_domain }}/api
