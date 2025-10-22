@@ -57,3 +57,48 @@ output "ansible_host" {
   description = "Host for Ansible inventory"
   value       = aws_instance.hortti_app.public_ip
 }
+
+# ============================================
+# Generated Secrets (for Ansible)
+# ============================================
+output "ssh_private_key" {
+  description = "SSH private key for Ansible"
+  value       = tls_private_key.hortti_ssh.private_key_pem
+  sensitive   = true
+}
+
+output "postgres_password" {
+  description = "PostgreSQL password"
+  value       = random_password.postgres_password.result
+  sensitive   = true
+}
+
+output "jwt_secret" {
+  description = "JWT secret"
+  value       = random_password.jwt_secret.result
+  sensitive   = true
+}
+
+output "jwt_refresh_secret" {
+  description = "JWT refresh secret"
+  value       = random_password.jwt_refresh_secret.result
+  sensitive   = true
+}
+
+# ============================================
+# Hardcoded values (for Ansible)
+# ============================================
+output "postgres_user" {
+  description = "PostgreSQL username"
+  value       = "hortti_admin"
+}
+
+output "postgres_db" {
+  description = "PostgreSQL database name"
+  value       = "hortti_inventory"
+}
+
+output "acme_email" {
+  description = "Email for Let's Encrypt"
+  value       = "admin@cantinhoverde.app.br"
+}
