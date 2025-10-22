@@ -49,10 +49,19 @@ resource "random_password" "jwt_refresh_secret" {
 # ============================================
 # Traefik Dashboard Password
 # ============================================
-# Use senha simples para dashboard (não é crítico em produção)
+# Use senha fixa "admin" para facilitar acesso ao dashboard
+locals {
+  traefik_password = "admin"
+}
+
 resource "random_password" "traefik_password" {
-  length  = 8
+  length  = 1
   special = false
+}
+
+# Usar valor fixo ao invés de aleatório
+output "traefik_dashboard_password_output" {
+  value = local.traefik_password
 }
 
 # ============================================
@@ -112,9 +121,9 @@ resource "aws_ssm_parameter" "ssh_private_key" {
 
 resource "aws_ssm_parameter" "traefik_password" {
   name        = "/${var.project_name}/${var.environment}/traefik/password"
-  description = "Traefik dashboard password for ${var.project_name}"
-  type        = "SecureString"
-  value       = random_password.traefik_password.result
+  description = "Traefik dashboard password for ${var.project_name} (admin)"
+  type        = "String"
+  value       = local.traefik_password
 
   tags = {
     Environment = var.environment

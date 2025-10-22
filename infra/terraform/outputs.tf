@@ -118,12 +118,12 @@ output "acme_email" {
 
 output "traefik_password" {
   description = "Traefik dashboard password (username: admin)"
-  value       = random_password.traefik_password.result
+  value       = local.traefik_password
   sensitive   = true
 }
 
 output "traefik_dashboard_auth" {
-  description = "Traefik dashboard auth (htpasswd format) - use plaintext password with admin user"
-  value       = "admin:${random_password.traefik_password.result}"
+  description = "Traefik dashboard auth - admin:admin"
+  value       = "admin:${local.traefik_password}"
   sensitive   = true
 }
