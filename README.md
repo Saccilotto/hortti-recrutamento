@@ -297,19 +297,47 @@ Terraform gera automaticamente:
 
 Ver: [docs/GITHUB_SECRETS.md](docs/GITHUB_SECRETS.md)
 
+### Terraform Backend Bootstrap
+
+**Primeira vez:** Terraform backend (S3 + DynamoDB) criado automaticamente
+
+O script `infra/terraform/bootstrap-backend.sh` cria:
+
+- S3 bucket: `hortti-terraform-state` (versionamento + encryption)
+- DynamoDB table: `hortti-terraform-locks` (state locking)
+
+**Custo:** < $1/mês | **Região:** us-east-2
+
+Ver: [infra/terraform/BOOTSTRAP.md](infra/terraform/BOOTSTRAP.md)
+
 ---
 
 ## 🚀 Deploy em Produção
 
 ### Infraestrutura
 
-- **Cloud:** AWS EC2 t2.medium (us-east-2)
-- **OS:** Ubuntu 22.04 LTS
-- **DNS:** Cloudflare
-- **SSL:** Let's Encrypt (Traefik)
-- **IaC:** Terraform + Ansible
-- **CI/CD:** GitHub Actions
-- **Registry:** GitHub Container Registry
+**Compute:**
+
+- AWS EC2 t2.medium (us-east-2)
+- Ubuntu 22.04 LTS
+- Docker + Docker Compose
+
+**Network:**
+
+- VPC customizado (10.0.0.0/16)
+- Subnet pública (10.0.1.0/24)
+- Internet Gateway + Route Table
+- Security Group (SSH, HTTP, HTTPS)
+- Elastic IP
+
+**Automation:**
+
+- IaC: Terraform (21 recursos)
+- Config: Ansible
+- CI/CD: GitHub Actions
+- DNS: Cloudflare
+- SSL: Let's Encrypt (Traefik)
+- Registry: GitHub Container Registry (GHCR)
 
 ### Domínios
 

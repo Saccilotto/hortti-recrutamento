@@ -1913,6 +1913,390 @@ Deploy
 
 ---
 
+## Sessão 10: Bootstrap Terraform Backend + Deploy Completo
+
+### Data: 2025-10-22 — Sessão 10
+
+#### Prompt 10.1: Terraform Init Error - S3 Backend Não Existe
+
+**Erro:**
+```
+Error: Failed to get existing workspaces: S3 bucket does not exist.
+NoSuchBucket: The specified bucket does not exist
+```
+
+**Problema:** Chicken-and-egg - Terraform precisa de S3 bucket para guardar state, mas bucket não existe ainda.
+
+**Solução:** Script de bootstrap idempotente
+
+**Arquivo Criado:** `infra/terraform/bootstrap-backend.sh`
+
+```bash
+#!/bin/bash
+# Cria S3 bucket + DynamoDB table se não existirem
+
+BUCKET_NAME="hortti-terraform-state"
+DYNAMODB_TABLE="hortti-terraform-locks"
+AWS_REGION="us-east-2"
+
+# Cria bucket com versioning, encryption, block public access
+aws s3api create-bucket --bucket $BUCKET_NAME --region $AWS_REGION
+aws s3api put-bucket-versioning --bucket $BUCKET_NAME --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket $BUCKET_NAME --server-side-encryption-configuration '...'
+
+# Cria DynamoDB table para locking
+aws dynamodb create-table --table-name $DYNAMODB_TABLE --billing-mode PAY_PER_REQUEST
+```
+
+**Workflow Atualizado:**
+```yaml
+- name: Bootstrap Terraform Backend
+  run: ./bootstrap-backend.sh
+
+- name: Terraform Init
+  run: terraform init
+```
+
+**Resultado:** ✅ Backend criado automaticamente, `terraform init` funciona
+
+**Documentação:** `infra/terraform/BOOTSTRAP.md` criado
+
+---
+
+#### Prompt 10.2: Terraform Duplicate Resource - aws_key_pair
+
+**Erro:**
+```
+Error: Duplicate resource "aws_key_pair" configuration
+A aws_key_pair resource named "hortti_key" was already declared at ec2.tf:4,1-37 and secrets.tf:15
+```
+
+**Problema:** `aws_key_pair` definido em dois arquivos
+
+**Solução:** Remover de `ec2.tf`, manter apenas em `secrets.tf` (versão mais avançada com fallback)
+
+**Antes (ec2.tf:4-14):**
+```hcl
+resource "aws_key_pair" "hortti_key" {
+  key_name   = var.ssh_key_name
+  public_key = var.ssh_public_key
+}
+```
+
+**Depois (removido, adicionado comentário):**
+```hcl
+# Note: SSH key pair is defined in secrets.tf
+```
+
+**Mantido em secrets.tf:**
+```hcl
+resource "aws_key_pair" "hortti_key" {
+  key_name   = var.ssh_key_name
+  # Usa chave fornecida OU gera automaticamente
+  public_key = var.ssh_public_key != "" ? var.ssh_public_key : tls_private_key.hortti_ssh.public_key_openssh
+}
+```
+
+**Resultado:** ✅ Sem duplicatas, validação passou
+
+---
+
+#### Prompt 10.3: Terraform Error - VPC Default Não Existe
+
+**Erro:**
+```
+Error: no matching EC2 VPC found
+with data.aws_vpc.default, on data.tf line 27
+```
+
+**Problema:** Conta AWS não tem VPC default, configuração assumia que existia
+
+**Solução:** Criar VPC completo para single-node
+
+**Arquivo Criado:** `infra/terraform/vpc.tf`
+
+**Recursos Criados:**
+```hcl
+# VPC
+resource "aws_vpc" "hortti_vpc" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "hortti_igw" {
+  vpc_id = aws_vpc.hortti_vpc.id
+}
+
+# Public Subnet
+resource "aws_subnet" "hortti_public_subnet" {
+  vpc_id                  = aws_vpc.hortti_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = true
+}
+
+# Route Table
+resource "aws_route_table" "hortti_public_rt" {
+  vpc_id = aws_vpc.hortti_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.hortti_igw.id
+  }
+}
+
+# Association
+resource "aws_route_table_association" "hortti_public_rta" {
+  subnet_id      = aws_subnet.hortti_public_subnet.id
+  route_table_id = aws_route_table.hortti_public_rt.id
+}
+```
+
+**Arquivos Modificados:**
+- `data.tf` - Removido `data.aws_vpc.default`
+- `security_groups.tf` - `vpc_id = aws_vpc.hortti_vpc.id`
+- `ec2.tf` - Adicionado `subnet_id = aws_subnet.hortti_public_subnet.id`
+- `outputs.tf` - Adicionado outputs `vpc_id` e `subnet_id`
+
+**Custo:** $0/mês (VPC/subnet/IGW são gratuitos)
+
+---
+
+#### Prompt 10.4: Terraform Self-Referential Security Group
+
+**Erro:**
+```
+Error: Self-referential block
+Configuration for aws_security_group.hortti_sg may not refer to itself.
+on security_groups.tf line 42: security_groups = [aws_security_group.hortti_sg.id]
+```
+
+**Problema:** Security group tentava referenciar a si mesmo durante criação (ID não existe ainda)
+
+**Solução:** Usar `self = true` ao invés de `security_groups = [...]`
+
+**Antes (linhas 42, 51, 60, 69):**
+```hcl
+ingress {
+  description     = "PostgreSQL (internal)"
+  from_port       = 5432
+  to_port         = 5432
+  protocol        = "tcp"
+  security_groups = [aws_security_group.hortti_sg.id]  # ❌ Self-reference
+}
+```
+
+**Depois:**
+```hcl
+ingress {
+  description = "PostgreSQL (internal)"
+  from_port   = 5432
+  to_port     = 5432
+  protocol    = "tcp"
+  self        = true  # ✅ Permite tráfego de instâncias com mesmo SG
+}
+```
+
+**Portas Internas (self=true):**
+- 5432 (PostgreSQL)
+- 3001 (Backend NestJS)
+- 3000 (Frontend Next.js)
+- 8080 (Traefik Dashboard)
+
+**Portas Públicas (0.0.0.0/0):**
+- 22 (SSH)
+- 80 (HTTP)
+- 443 (HTTPS)
+
+**Arquitetura:**
+```
+Internet → Traefik (443) → Frontend (3000) / Backend (3001)
+                                      ↓
+                               PostgreSQL (5432)
+```
+
+Containers comunicam via Docker network (não passa por security group)
+
+---
+
+#### Prompt 10.5: Terraform Apply SUCCESS + Cloudflare Warning
+
+**Resultado Terraform:**
+```
+Apply complete! Resources: 21 added, 0 changed, 0 destroyed.
+
+Outputs:
+ec2_public_ip = "18.221.6.32"
+vpc_id = "vpc-07f8403d24f1a6ec8"
+subnet_id = "subnet-0e77209d627ca9a9e"
+frontend_url = "https://cantinhoverde.app.br"
+backend_url = "https://api.cantinhoverde.app.br"
+traefik_dashboard_url = "https://traefik.cantinhoverde.app.br"
+```
+
+**Warning:**
+```
+Warning: Argument is deprecated
+with cloudflare_record.frontend, on cloudflare.tf line 9
+`value` is deprecated in favour of `content`
+```
+
+**Correções:**
+
+1. **Cloudflare `value` → `content`** (cloudflare.tf linhas 9, 21, 33):
+```hcl
+# Antes
+value = aws_eip.hortti_eip.public_ip
+
+# Depois
+content = aws_eip.hortti_eip.public_ip
+```
+
+2. **Ansible version fix** (deploy.yml linha 28):
+```yaml
+# Antes
+ANSIBLE_VERSION: 2.15  # ❌ Não existe
+
+# Depois
+ANSIBLE_VERSION: 9.13.0  # ✅ Versão atual
+```
+
+**Resultado:** ✅ Infraestrutura completa criada
+
+---
+
+#### Prompt 10.6: Ansible Error - Docker Repository Conflict
+
+**Erro:**
+```
+apt_pkg.Error: E:Conflicting values set for option Signed-By
+regarding source https://download.docker.com/linux/ubuntu/ jammy:
+/etc/apt/keyrings/docker.asc !=
+```
+
+**Problema:**
+- `user-data.sh` instala Docker via `get.docker.com` (adiciona repo de uma forma)
+- Ansible tentava instalar Docker via APT (adiciona repo de forma diferente)
+- Configurações conflitantes
+
+**Solução 1:** Remover instalação do Docker do Ansible
+
+**Antes (playbook.yml linhas 43-74):**
+```yaml
+- name: Add Docker GPG key
+- name: Add Docker repository
+- name: Install Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+```
+
+**Depois:**
+```yaml
+- name: Verify Docker is installed
+  command: docker --version
+
+- name: Display Docker version
+
+- name: Ensure user is in docker group
+
+- name: Ensure Docker service is running
+```
+
+**Problema:** `apt update` ainda falhava com o repo quebrado
+
+**Solução 2:** Limpar configuração conflitante antes de apt update
+
+**Adicionado (playbook.yml linhas 22-42):**
+```yaml
+pre_tasks:
+  - name: Fix Docker repository configuration if it exists
+    shell: |
+      # Remove conflicting entries
+      rm -f /etc/apt/sources.list.d/docker.list
+      rm -f /etc/apt/sources.list.d/docker-ce.list
+      rm -f /etc/apt/keyrings/docker.asc
+      rm -f /etc/apt/keyrings/docker.gpg
+      sed -i '/download.docker.com/d' /etc/apt/sources.list
+      # Force apt update
+      apt-get update 2>&1 | grep -v "download.docker.com" || true
+    ignore_errors: yes
+
+  - name: Ensure Python Docker library is installed
+    pip:
+      name:
+        - docker
+        - docker-compose
+```
+
+**Estratégia Final:**
+- ✅ `user-data.sh` → Instala Docker (init)
+- ✅ Ansible → Apenas verifica e usa Docker
+- ✅ Limpa configurações conflitantes antes de apt update
+- ✅ Instala Python Docker SDK via pip (necessário para Ansible)
+
+---
+
+### Resumo Sessão 10
+
+**Problemas Resolvidos:** 6
+
+1. ✅ Terraform backend bootstrap (S3 + DynamoDB)
+2. ✅ Duplicate aws_key_pair resource
+3. ✅ VPC não existia (criado do zero)
+4. ✅ Self-referential security group
+5. ✅ Cloudflare deprecation warnings
+6. ✅ Ansible Docker repository conflict
+
+**Infraestrutura Criada:**
+
+- 1 VPC (10.0.0.0/16)
+- 1 Subnet pública (10.0.1.0/24)
+- 1 Internet Gateway
+- 1 Route Table
+- 1 EC2 t2.medium (18.221.6.32)
+- 1 Elastic IP
+- 1 Security Group
+- 3 DNS records (Cloudflare)
+- 4 SSM Parameters (secrets)
+- 3 Random passwords
+- 1 TLS key pair (4096-bit)
+
+**Total:** 21 recursos Terraform
+
+**Arquivos Criados:**
+
+- `infra/terraform/bootstrap-backend.sh`
+- `infra/terraform/BOOTSTRAP.md`
+- `infra/terraform/vpc.tf`
+
+**Arquivos Modificados:**
+
+- `.github/workflows/deploy.yml`
+- `infra/terraform/cloudflare.tf`
+- `infra/terraform/data.tf`
+- `infra/terraform/ec2.tf`
+- `infra/terraform/security_groups.tf`
+- `infra/terraform/outputs.tf`
+- `infra/ansible/playbook.yml`
+
+**Métricas:**
+
+- Secrets GitHub: 15+ → 5 (redução de 67%)
+- Tempo bootstrap: 0s → ~30s (primeira vez)
+- Custo mensal estimado: ~$25-30 (EC2 t2.medium + EIP + transfer)
+- Recursos gerenciados: 21 (Terraform) + N (Docker containers)
+
+**Próximo Deploy:**
+- ✅ Terraform backend existe
+- ✅ Infraestrutura provisionada
+- ✅ Ansible configurado
+- 🔄 Deploy da aplicação (em andamento)
+
+---
+
 **Última atualização:** 2025-10-22
 **Documentado por:** Assistente IA + Desenvolvedor
-**Versão:** 1.3.0
+**Versão:** 1.4.0
