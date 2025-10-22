@@ -1,21 +1,7 @@
 # ============================================
-# SSH Key Pair
-# ============================================
-resource "aws_key_pair" "hortti_key" {
-  key_name   = var.ssh_key_name
-  public_key = var.ssh_public_key
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "${var.project_name}-${var.environment}-key"
-    }
-  )
-}
-
-# ============================================
 # EC2 Instance
 # ============================================
+# Note: SSH key pair is defined in secrets.tf
 resource "aws_instance" "hortti_app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
