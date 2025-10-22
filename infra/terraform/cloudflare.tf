@@ -6,7 +6,7 @@
 resource "cloudflare_record" "frontend" {
   zone_id = var.cloudflare_zone_id
   name    = var.frontend_subdomain == "" ? "@" : var.frontend_subdomain
-  value   = aws_eip.hortti_eip.public_ip
+  content = aws_eip.hortti_eip.public_ip
   type    = "A"
   ttl     = 1 # Auto (Cloudflare proxy)
   proxied = false # Disable proxy for Let's Encrypt DNS challenge
@@ -18,7 +18,7 @@ resource "cloudflare_record" "frontend" {
 resource "cloudflare_record" "backend" {
   zone_id = var.cloudflare_zone_id
   name    = var.backend_subdomain
-  value   = aws_eip.hortti_eip.public_ip
+  content = aws_eip.hortti_eip.public_ip
   type    = "A"
   ttl     = 1
   proxied = false
@@ -30,7 +30,7 @@ resource "cloudflare_record" "backend" {
 resource "cloudflare_record" "traefik" {
   zone_id = var.cloudflare_zone_id
   name    = var.traefik_subdomain
-  value   = aws_eip.hortti_eip.public_ip
+  content = aws_eip.hortti_eip.public_ip
   type    = "A"
   ttl     = 1
   proxied = false
