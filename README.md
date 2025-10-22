@@ -5,8 +5,8 @@ Sistema fullstack para gestão de inventário do "Cantinho Verde" com NestJS, Ne
 ## 🛠️ Tecnologias
 
 **Backend:** NestJS 10.3 | TypeScript 5.3 | TypeORM | PostgreSQL 15 | JWT | Multer
-**Frontend:** Next.js 14.0 | React 18.2 | TypeScript 5.3 | Tailwind CSS 3.4 | Axios | SWR
-**DevOps:** Docker | Docker Compose | Node.js 18
+**Frontend:** Next.js 14.0 | React 18.2 | TypeScript 5.3 | Tailwind CSS 3.4 | Axios
+**DevOps:** Docker | Docker Compose | GitHub Actions | Terraform | Ansible | AWS | Cloudflare
 
 ## 📁 Estrutura
 
@@ -17,7 +17,10 @@ Sistema fullstack para gestão de inventário do "Cantinho Verde" com NestJS, Ne
 ├── frontend/         # App Next.js
 │   ├── pages/        # Páginas (Pages Router)
 │   └── components/   # Componentes React
-└── docker-compose-*.yml
+├── infra/            # Infraestrutura
+│   ├── terraform/    # AWS + Cloudflare
+│   └── ansible/      # Deploy automation
+└── .github/workflows/ # CI/CD
 ```
 
 ## 🚀 Como Executar
@@ -272,6 +275,27 @@ destination: (req, file, cb) => {
   cb(null, absolutePath);
 }
 ```
+
+### Secrets Gerenciados pelo Terraform
+
+**Reduzido de 15+ para apenas 5 GitHub Secrets obrigatórios:**
+
+Terraform gera automaticamente:
+
+- SSH keys (RSA 4096)
+- PostgreSQL password (32 chars)
+- JWT secret + refresh (64 chars cada)
+- Backup em AWS SSM Parameter Store
+
+**Secrets necessários:**
+
+1. `AWS_ACCESS_KEY_ID`
+2. `AWS_SECRET_ACCESS_KEY`
+3. `CLOUDFLARE_API_TOKEN`
+4. `CLOUDFLARE_ZONE_ID`
+5. `GITHUBS_TOKEN`
+
+Ver: [docs/GITHUB_SECRETS.md](docs/GITHUB_SECRETS.md)
 
 ---
 
