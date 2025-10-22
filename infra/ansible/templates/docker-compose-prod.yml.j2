@@ -60,7 +60,7 @@ services:
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       # Dashboard Auth
       - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users={{ traefik_dashboard_auth }}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
 
   # ============================================
   # PostgreSQL Database (Production)

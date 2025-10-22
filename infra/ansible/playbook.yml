@@ -19,6 +19,10 @@
     image_tag: "{{ deploy_image_tag | default('latest') }}"
 
   pre_tasks:
+    - name: Debug - Display Traefik credentials
+      debug:
+        msg: "Traefik Dashboard Auth: {{ traefik_dashboard_auth }}"
+
     - name: Fix Docker repository configuration if it exists
       shell: |
         # Remove conflicting Docker repository entries completely
