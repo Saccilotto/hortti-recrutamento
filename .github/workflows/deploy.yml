@@ -53,6 +53,10 @@ jobs:
       jwt_secret: ${{ steps.tf_output.outputs.jwt_sec }}
       jwt_refresh_secret: ${{ steps.tf_output.outputs.jwt_ref }}
       acme_email: ${{ steps.tf_output.outputs.email }}
+      traefik_dashboard_auth: ${{ steps.tf_output.outputs.traefik_auth }}
+      traefik_password: ${{ steps.tf_output.outputs.traefik_pass }}
+      jwt_refresh_secret: ${{ steps.tf_output.outputs.jwt_ref }}
+      acme_email: ${{ steps.tf_output.outputs.email }}
 
     steps:
       - name: Checkout repository
@@ -141,6 +145,8 @@ jobs:
           echo "jwt_sec=$(terraform output -raw jwt_secret)" >> $GITHUB_OUTPUT
           echo "jwt_ref=$(terraform output -raw jwt_refresh_secret)" >> $GITHUB_OUTPUT
           echo "email=$(terraform output -raw acme_email)" >> $GITHUB_OUTPUT
+          echo "traefik_auth=$(terraform output -raw traefik_dashboard_auth)" >> $GITHUB_OUTPUT
+          echo "traefik_pass=$(terraform output -raw traefik_password)" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy Application
@@ -201,7 +207,7 @@ jobs:
           cloudflare_dns_token: "${{ secrets.CLOUDFLARE_API_TOKEN }}"
           cloudflare_zone_token: "${{ secrets.CLOUDFLARE_API_TOKEN }}"
           acme_email: "${{ needs.terraform.outputs.acme_email }}"
-          traefik_dashboard_auth: ""
+          traefik_dashboard_auth: "${{ needs.terraform.outputs.traefik_dashboard_auth }}"
           EOF
 
       - name: Wait for EC2 to be ready

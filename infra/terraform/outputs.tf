@@ -115,3 +115,15 @@ output "acme_email" {
   description = "Email for Let's Encrypt"
   value       = "admin@cantinhoverde.app.br"
 }
+
+output "traefik_password" {
+  description = "Traefik dashboard password (username: admin)"
+  value       = random_password.traefik_password.result
+  sensitive   = true
+}
+
+output "traefik_dashboard_auth" {
+  description = "Traefik dashboard auth (htpasswd format)"
+  value       = trimspace(data.local_file.traefik_auth.content)
+  sensitive   = true
+}
