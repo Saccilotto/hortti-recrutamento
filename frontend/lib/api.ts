@@ -1,9 +1,6 @@
 import axios from 'axios';
-import getConfig from 'next/config';
 
-// Get runtime config (works in production with env vars)
-const { publicRuntimeConfig } = getConfig() || { publicRuntimeConfig: {} };
-const API_URL = publicRuntimeConfig?.apiUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const BASE_URL = API_URL.replace('/api', '');
 
 export const api = axios.create({
