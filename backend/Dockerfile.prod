@@ -20,6 +20,9 @@ RUN npm ci --only=production && npm cache clean --force
 
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Create uploads directory for static files
+RUN mkdir -p uploads
+
 EXPOSE 3001
 
 CMD ["node", "dist/main.js"]
