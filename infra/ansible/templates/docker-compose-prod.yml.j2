@@ -201,7 +201,7 @@ services:
       - "traefik.http.middlewares.frontend-headers.headers.stsPreload=true"
       - "traefik.http.routers.frontend.middlewares=frontend-headers"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
