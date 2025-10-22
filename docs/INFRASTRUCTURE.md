@@ -4,14 +4,14 @@ Documentação técnica da infraestrutura de produção do Hortti Inventory.
 
 ## Arquitetura Completa
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     GitHub Repository                       │
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │   Backend    │  │   Frontend   │  │  Terraform   │    │
-│  │   (NestJS)   │  │  (Next.js)   │  │   + Ansible  │    │
-│  └──────────────┘  └──────────────┘  └──────────────┘    │
+```text
+┌────────────────────────────────────────────────────────────┐
+│                     GitHub Repository                      │
+│                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Backend    │  │   Frontend   │  │  Terraform   │      │
+│  │   (NestJS)   │  │  (Next.js)   │  │   + Ansible  │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
 └───────────────┬─────────────────────────────┬──────────────┘
                 │                             │
                 ▼                             ▼
@@ -37,15 +37,15 @@ Documentação técnica da infraestrutura de produção do Hortti Inventory.
         │  │    Traefik     │  │  ◄── Cloudflare DNS
         │  │  (SSL/Proxy)   │  │
         │  └────┬──────┬────┘  │
-        │       │      │        │
+        │       │      │       │
         │  ┌────▼──┐ ┌▼─────┐  │
-        │  │Frontend│ │Backend│ │
-        │  │  :3000 │ │ :3001 │ │
-        │  └────────┘ └───┬───┘ │
-        │              ┌──▼───┐  │
-        │              │ DB   │  │
-        │              │:5432 │  │
-        │              └──────┘  │
+        │  │Frontend│ │Backend││
+        │  │  :3000 │ │ :3001 ││
+        │  └────────┘ └───┬───┘│
+        │              ┌──▼───┐│
+        │              │ DB   ││
+        │              │:5432 ││
+        │              └──────┘│
         └──────────────────────┘
 ```
 
@@ -56,6 +56,7 @@ Documentação técnica da infraestrutura de produção do Hortti Inventory.
 **Responsabilidade:** Provisionar e gerenciar infraestrutura AWS e Cloudflare
 
 **Recursos criados:**
+
 - EC2 t2.medium (Ubuntu 22.04)
 - Elastic IP fixo
 - Security Group (portas 22, 80, 443)
@@ -66,7 +67,8 @@ Documentação técnica da infraestrutura de produção do Hortti Inventory.
 **Estado:** Armazenado em S3 + lock no DynamoDB
 
 **Arquivos principais:**
-```
+
+```plaintext
 infra/terraform/
 ├── versions.tf          # Backend S3 + versões
 ├── providers.tf         # AWS + Cloudflare
@@ -83,6 +85,7 @@ infra/terraform/
 **Responsabilidade:** Configurar servidor e fazer deploy da aplicação
 
 **Tarefas executadas:**
+
 1. Instalar Docker + Docker Compose
 2. Configurar firewall (UFW)
 3. Criar diretórios da aplicação
@@ -93,7 +96,8 @@ infra/terraform/
 8. Aguardar health checks
 
 **Arquivos principais:**
-```
+
+```plaintext
 infra/ansible/
 ├── ansible.cfg                      # Config do Ansible
 ├── playbook.yml                     # Playbook principal
@@ -107,6 +111,7 @@ infra/ansible/
 ### 3. GitHub Actions (CI/CD)
 
 **Workflow 1: Build Images** (`build-images.yml`)
+
 - **Trigger:** Push na main, PRs, tags
 - **Ações:**
   1. Build das imagens Backend e Frontend
@@ -114,6 +119,7 @@ infra/ansible/
   3. Cache layers para builds rápidos
 
 **Workflow 2: Deploy** (`deploy.yml`)
+
 - **Trigger:** Manual (workflow_dispatch)
 - **Opções:**
   - Terraform: plan/apply/destroy
@@ -128,12 +134,14 @@ infra/ansible/
 ### 4. Traefik (Reverse Proxy)
 
 **Responsabilidades:**
+
 - Reverse proxy para Backend e Frontend
 - Terminação SSL/TLS
 - Renovação automática de certificados
 - Dashboard de monitoramento
 
 **Características:**
+
 - DNS Challenge (Cloudflare)
 - Let's Encrypt (produção)
 - HTTP → HTTPS redirect automático
@@ -141,7 +149,8 @@ infra/ansible/
 - Security headers (HSTS)
 
 **Rotas:**
-```
+
+```text
 https://cantinhoverde.app.br          → frontend:3000
 https://api.cantinhoverde.app.br      → backend:3001
 https://traefik.cantinhoverde.app.br  → traefik dashboard
@@ -150,17 +159,20 @@ https://traefik.cantinhoverde.app.br  → traefik dashboard
 ### 5. Docker Compose (Produção)
 
 **Serviços:**
+
 1. **traefik** - Reverse proxy + SSL
 2. **db** - PostgreSQL 15 Alpine
 3. **backend** - NestJS (imagem do GHCR)
 4. **frontend** - Next.js (imagem do GHCR)
 
 **Volumes persistentes:**
+
 - `postgres_data` - Dados do banco
 - `backend_uploads` - Uploads de arquivos
 - `traefik_letsencrypt` - Certificados SSL
 
 **Networks:**
+
 - `hortti-network` - Rede bridge interna
 
 ## Fluxo de Deploy
@@ -191,12 +203,15 @@ export GITHUB_TOKEN="ghp_..."
 make docker-build-push
 
 # 7. Deploy da aplicação
+
+```bash
 make deploy
 ```
 
 ### Deploy de Atualizações
 
-**Opção 1: Via Makefile (local)**
+#### Opção 1: Via Makefile (local)
+
 ```bash
 # Build + Push + Deploy
 make prod-deploy
@@ -205,14 +220,16 @@ make prod-deploy
 make deploy
 ```
 
-**Opção 2: Via GitHub Actions**
+### Opção 2: Via GitHub Actions
+
 1. Push na branch `main` (build automático de imagens)
 2. Actions → Deploy to Production → Run workflow
 3. Terraform: `plan` (ou `apply` se mudar infra)
 4. Deploy app: `true`
 5. Image tag: `latest`
 
-**Opção 3: SSH manual**
+### Opção 3: SSH manual
+
 ```bash
 # SSH na EC2
 ssh -i ~/.ssh/hortti-prod-key.pem ubuntu@IP_DA_EC2
@@ -258,6 +275,7 @@ docker compose up -d
 ### Secrets
 
 **Nunca commitar:**
+
 - `terraform.tfvars`
 - `secrets.yml`
 - Chaves SSH privadas
@@ -265,6 +283,7 @@ docker compose up -d
 - Senhas
 
 **Usar:**
+
 - `.gitignore` configurado
 - Ansible Vault para `secrets.yml`
 - GitHub Secrets para CI/CD
@@ -295,12 +314,14 @@ healthcheck:
 ### Logs
 
 **Via Makefile:**
+
 ```bash
 make prod-logs          # Logs em tempo real
 make prod-status        # Status dos containers
 ```
 
 **Via SSH:**
+
 ```bash
 ssh ubuntu@IP_DA_EC2
 cd /opt/hortti-inventory
@@ -308,13 +329,15 @@ docker compose logs -f --tail=100
 ```
 
 **Traefik Dashboard:**
-- URL: https://traefik.cantinhoverde.app.br
+
+- URL: <https://traefik.cantinhoverde.app.br>
 - Auth: Basic Auth (htpasswd)
 - Mostra: rotas, backends, certificados, health
 
 ### Métricas
 
 **Recursos da EC2:**
+
 ```bash
 # SSH na EC2
 htop                    # CPU/RAM
@@ -323,6 +346,7 @@ docker stats            # Por container
 ```
 
 **CloudWatch (AWS):**
+
 - CPU Utilization
 - Network In/Out
 - Disk Read/Write
@@ -352,14 +376,16 @@ scp -i ~/.ssh/hortti-prod-key.pem \
 
 ### Backup Automático (Recomendado)
 
-**Opção 1: Cron na EC2**
+#### Opção 1: Cron na EC2
+
 ```bash
 # Adicionar ao crontab
 0 2 * * * cd /opt/hortti-inventory && docker compose exec -T db \
   pg_dump -U hortti_admin hortti_inventory > backup-$(date +\%Y\%m\%d).sql
 ```
 
-**Opção 2: AWS Backup**
+#### Opção 2: AWS Backup
+
 - Configurar snapshots do EBS
 - Retenção de 7 dias
 - Custo: ~$0.05/GB/mês
@@ -373,40 +399,6 @@ docker compose exec -T db psql -U hortti_admin hortti_inventory < backup.sql
 # Restaurar uploads
 tar -xzf uploads-backup.tar.gz -C /opt/hortti-inventory/
 ```
-
-## Custos
-
-### AWS (us-east-2)
-
-| Recurso | Especificação | Custo/mês |
-|---------|---------------|-----------|
-| EC2 t2.medium | 2 vCPU, 4GB RAM | $33.87 |
-| EBS gp3 | 30GB SSD | $2.40 |
-| EIP | IP elástico (associado) | $0.00 |
-| Data Transfer | Primeiros 100GB | $0.00 |
-| S3 | State do Terraform (~1MB) | $0.02 |
-| DynamoDB | Locks (5 R/W) | $0.65 |
-| **TOTAL** | | **~$36.94/mês** |
-
-### Cloudflare
-
-- DNS: **Grátis** (plano Free)
-- SSL: **Grátis** (Universal SSL)
-- CDN: **Grátis** (100GB/mês)
-
-### Otimizações de Custo
-
-**Reduzir custos:**
-- Use t2.micro ($8.47/mês) para staging
-- Pare a instância quando não usar (stop/start)
-- Use Reserved Instances (-30% a -60%)
-- Configure Auto Scaling (escala para zero)
-
-**Aumentar custos (melhor performance):**
-- Upgrade para t3.medium ($30.74/mês)
-- Adicionar Application Load Balancer (+$16/mês)
-- Adicionar RDS para banco (+$15/mês)
-- Adicionar ElastiCache (+$13/mês)
 
 ## Troubleshooting Rápido
 
@@ -467,40 +459,10 @@ aws ec2 describe-security-groups --region us-east-2
 chmod 600 ~/.ssh/hortti-prod-key.pem
 ```
 
-## Próximas Melhorias
-
-### Curto Prazo
-
-- [ ] Configurar backups automáticos
-- [ ] Implementar rate limiting (Traefik)
-- [ ] Adicionar logs centralizados (ELK/Loki)
-- [ ] Configurar alertas (CloudWatch Alarms)
-
-### Médio Prazo
-
-- [ ] Migrar banco para RDS
-- [ ] Adicionar Redis/ElastiCache
-- [ ] Implementar Blue/Green deployment
-- [ ] Configurar CDN para assets estáticos
-
-### Longo Prazo
-
-- [ ] Migrar para Kubernetes (EKS)
-- [ ] Implementar service mesh (Istio)
-- [ ] Adicionar observability (Prometheus + Grafana)
-- [ ] Multi-region deployment
-
-## Recursos Adicionais
-
-- [AWS EC2 Documentation](https://docs.aws.amazon.com/ec2/)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest)
-- [Cloudflare Terraform](https://registry.terraform.io/providers/cloudflare/cloudflare/latest)
-- [Traefik Documentation](https://doc.traefik.io/traefik/)
-- [Ansible Best Practices](https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html)
-
 ---
 
 **Documentação relacionada:**
+
 - [Guia de Deploy](DEPLOYMENT.md)
 - [GitHub Secrets](SECRETS.md)
 - [Endpoints API](ENDPOINTS.md)

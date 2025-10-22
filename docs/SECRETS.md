@@ -12,13 +12,13 @@ Este arquivo documenta todos os secrets necessários para o GitHub Actions funci
 
 ### AWS Credentials
 
-```
+```text
 Name: AWS_ACCESS_KEY_ID
 Description: AWS Access Key ID com permissões para EC2, VPC, S3, DynamoDB
 Value: AKIA...
 ```
 
-```
+```text
 Name: AWS_SECRET_ACCESS_KEY
 Description: AWS Secret Access Key
 Value: <secret>
@@ -26,13 +26,13 @@ Value: <secret>
 
 ### SSH Configuration
 
-```
+```text
 Name: SSH_PUBLIC_KEY
 Description: Chave pública SSH (conteúdo de ~/.ssh/hortti-prod-key.pub)
 Value: ssh-rsa AAAAB3NzaC1yc2E...
 ```
 
-```
+```text
 Name: SSH_PRIVATE_KEY
 Description: Chave privada SSH (conteúdo de ~/.ssh/hortti-prod-key.pem)
 Value: -----BEGIN RSA PRIVATE KEY-----
@@ -40,49 +40,66 @@ Value: -----BEGIN RSA PRIVATE KEY-----
        -----END RSA PRIVATE KEY-----
 ```
 
-```
+```text
 Name: ALLOWED_SSH_CIDR
 Description: CIDR do IP permitido para SSH (ex: 203.0.113.0/32)
 Value: SEU.IP.AQUI/32
 ```
 
 **Como obter seu IP:**
+
 ```bash
 curl ifconfig.me
 # Adicione /32 no final
 ```
 
+```text
+Name: SSH_PRIVATE_KEY
+Description: Chave privada SSH (conteúdo de ~/.ssh/hortti-prod-key.pem)
+Value: -----BEGIN RSA PRIVATE KEY-----
+       MIIEpAIBAAKCAQEA...
+       -----END RSA PRIVATE KEY-----
+```
+
+```text
+Name: ALLOWED_SSH_CIDR
+Description: CIDR do IP permitido para SSH (ex: 203.0.113.0/32)
+Value: SEU.IP.AQUI/32
+```
+
 ### Cloudflare
 
-```
+```text
 Name: CLOUDFLARE_API_TOKEN
 Description: Token da Cloudflare com permissões Edit DNS
 Value: <token>
 ```
 
 **Como gerar:**
-1. Acesse https://dash.cloudflare.com/profile/api-tokens
+
+1. Acesse <https://dash.cloudflare.com/profile/api-tokens>
 2. Create Token → Edit zone DNS
 3. Zone Resources: Include → Specific zone → cantinhoverde.app.br
 4. Continue to summary → Create Token
 
-```
+```text
 Name: CLOUDFLARE_ZONE_ID
 Description: Zone ID do domínio cantinhoverde.app.br
 Value: <zone_id>
 ```
 
 **Como encontrar:**
+
 1. Dashboard Cloudflare → cantinhoverde.app.br
 2. Sidebar direita → API → Zone ID
 
-```
+```text
 Name: CLOUDFLARE_DNS_TOKEN
 Description: Token para DNS Challenge (pode ser o mesmo do CLOUDFLARE_API_TOKEN)
 Value: <token>
 ```
 
-```
+```text
 Name: CLOUDFLARE_ZONE_TOKEN
 Description: Token para Zone API (pode ser o mesmo do CLOUDFLARE_API_TOKEN)
 Value: <token>
@@ -90,19 +107,19 @@ Value: <token>
 
 ### Database
 
-```
+```text
 Name: POSTGRES_USER
 Description: Usuário do PostgreSQL em produção
 Value: hortti_admin
 ```
 
-```
+```text
 Name: POSTGRES_PASSWORD
 Description: Senha do PostgreSQL (gerada com: openssl rand -base64 32)
 Value: <senha_segura>
 ```
 
-```
+```text
 Name: POSTGRES_DB
 Description: Nome do banco de dados
 Value: hortti_inventory
@@ -110,13 +127,13 @@ Value: hortti_inventory
 
 ### JWT Authentication
 
-```
+```text
 Name: JWT_SECRET
 Description: Secret para JWT tokens (gerar com: openssl rand -base64 32)
 Value: <secret_aleatorio_32_chars>
 ```
 
-```
+```text
 Name: JWT_REFRESH_SECRET
 Description: Secret para refresh tokens (gerar com: openssl rand -base64 32)
 Value: <outro_secret_aleatorio_32_chars>
@@ -124,7 +141,7 @@ Value: <outro_secret_aleatorio_32_chars>
 
 ### Email Configuration
 
-```
+```text
 Name: ACME_EMAIL
 Description: Email para notificações do Let's Encrypt
 Value: seu-email@exemplo.com
@@ -132,13 +149,14 @@ Value: seu-email@exemplo.com
 
 ### Traefik Dashboard
 
-```
+```text
 Name: TRAEFIK_DASHBOARD_AUTH
 Description: Usuário:senha hash para Traefik dashboard (htpasswd format)
 Value: admin:$apr1$xyz...
 ```
 
 **Como gerar:**
+
 ```bash
 # Instalar htpasswd (Apache utils)
 sudo apt-get install apache2-utils  # Ubuntu/Debian
@@ -151,7 +169,7 @@ htpasswd -nb admin SuaSenhaForte
 
 ### API URL (Build Time)
 
-```
+```text
 Name: NEXT_PUBLIC_API_URL
 Description: URL da API para o frontend (build time)
 Value: https://api.cantinhoverde.app.br/api
@@ -197,6 +215,7 @@ Se o Terraform plan funcionar, seus secrets de AWS e Cloudflare estão corretos.
 ### Rotação de Secrets
 
 **AWS:**
+
 ```bash
 # Criar novo Access Key
 aws iam create-access-key --user-name seu-usuario
@@ -207,6 +226,7 @@ aws iam delete-access-key --access-key-id VELHA_KEY --user-name seu-usuario
 ```
 
 **Cloudflare:**
+
 ```bash
 # Revogar token antigo no dashboard
 # Gerar novo token
@@ -214,6 +234,7 @@ aws iam delete-access-key --access-key-id VELHA_KEY --user-name seu-usuario
 ```
 
 **PostgreSQL:**
+
 ```bash
 # SSH na EC2
 ssh -i ~/.ssh/hortti-prod-key.pem ubuntu@IP_DA_EC2
@@ -243,6 +264,7 @@ ALTER USER hortti_admin WITH PASSWORD 'nova_senha_segura';
 **Sintoma:** Workflow falha com "secret not found"
 
 **Soluções:**
+
 1. Verifique o nome exato (case-sensitive)
 2. Verifique se está em Actions secrets (não Environment)
 3. Aguarde alguns segundos após adicionar
@@ -250,16 +272,19 @@ ALTER USER hortti_admin WITH PASSWORD 'nova_senha_segura';
 ### Secret com formato incorreto
 
 **SSH_PRIVATE_KEY:**
+
 - Deve começar com `-----BEGIN RSA PRIVATE KEY-----`
 - Deve terminar com `-----END RSA PRIVATE KEY-----`
 - Incluir as linhas BEGIN/END
 - Sem espaços ou tabs extras
 
 **TRAEFIK_DASHBOARD_AUTH:**
+
 - Formato: `usuario:$apr1$hash...`
 - Não usar aspas
 
 **ALLOWED_SSH_CIDR:**
+
 - Formato: `IP/32`
 - Exemplo: `203.0.113.42/32`
 - Não usar apenas o IP sem /32
@@ -278,19 +303,19 @@ aws iam get-user
 
 Estes secrets são opcionais mas recomendados para produção:
 
-```
+```text
 Name: SLACK_WEBHOOK_URL
 Description: Webhook do Slack para notificações
 Value: https://hooks.slack.com/services/...
 ```
 
-```
+```text
 Name: SENTRY_DSN
 Description: DSN do Sentry para error tracking
 Value: https://...@sentry.io/...
 ```
 
-```
+```text
 Name: DATADOG_API_KEY
 Description: API key do Datadog para monitoring
 Value: <api_key>
@@ -300,7 +325,7 @@ Value: <api_key>
 
 Use este template ao configurar um novo repositório:
 
-```
+```text
 Secrets Configuration Checklist
 
 AWS:

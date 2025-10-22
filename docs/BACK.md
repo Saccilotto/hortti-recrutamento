@@ -15,7 +15,7 @@
 
 ## Estrutura do Projeto
 
-```
+```text
 backend/
 ├── src/
 │   ├── auth/              # Módulo de autenticação JWT
@@ -253,13 +253,19 @@ npm run format             # Formata código
 ### Credenciais de Teste
 
 **Admin:**
-```
+
+```text
 Email: admin@cantinhoverde.com
 Senha: Admin@123
 ```
 
 **User:**
-```
+
+```text
+Email: user@cantinhoverde.com
+Senha: User@123
+
+```text
 Email: user@cantinhoverde.com
 Senha: User@123
 ```

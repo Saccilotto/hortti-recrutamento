@@ -28,10 +28,10 @@ Este guia documenta o processo completo de deploy da aplicação Hortti Inventor
 
 ### Serviços
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                   cantinhoverde.app.br              │
-│                      (Frontend)                      │
+│                      (Frontend)                     │
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────┴──────────────────────────────┐
@@ -254,7 +254,7 @@ make infra-apply
 
 **Outputs esperados:**
 
-```
+```text
 ec2_public_ip = "3.XXX.XXX.XXX"
 frontend_url = "https://cantinhoverde.app.br"
 backend_url = "https://api.cantinhoverde.app.br"
@@ -338,7 +338,7 @@ curl -I https://api.cantinhoverde.app.br/api/health
 
 Vá em **Settings → Secrets and variables → Actions** e adicione:
 
-```
+```text
 # AWS
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
@@ -435,7 +435,7 @@ openssl s_client -connect cantinhoverde.app.br:443 -servername cantinhoverde.app
 
 ## Comandos Úteis
 
-### Infraestrutura
+### Infra
 
 ```bash
 # Ver outputs do Terraform
@@ -506,6 +506,7 @@ cd infra/terraform && terraform force-unlock LOCK_ID
 ### Problema: SSL não funciona
 
 **Sintomas:**
+
 - Erro "ERR_SSL_VERSION_OR_CIPHER_MISMATCH"
 - Let's Encrypt challenge falha
 
@@ -528,6 +529,7 @@ docker compose logs traefik | grep acme
 ### Problema: Ansible não conecta
 
 **Sintomas:**
+
 - "Permission denied (publickey)"
 - "Timeout waiting for connection"
 
@@ -548,6 +550,7 @@ aws ec2 describe-security-groups --region us-east-2
 ### Problema: Imagens não sobem para GHCR
 
 **Sintomas:**
+
 - "denied: permission_denied"
 
 **Soluções:**
@@ -566,6 +569,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
 ### Problema: Deploy falha com "unhealthy container"
 
 **Sintomas:**
+
 - Container restart loop
 - Health check failing
 

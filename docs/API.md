@@ -31,10 +31,10 @@ Authorization: Bearer {token}
 Registra um novo usuário no sistema.
 
 **Request:**
+
 ```http
 POST /api/auth/register
 Content-Type: application/json
-
 {
   "email": "usuario@example.com",
   "password": "senha123",
@@ -44,12 +44,14 @@ Content-Type: application/json
 ```
 
 **Validações:**
+
 - `email`: Email válido, obrigatório
 - `password`: Mínimo 6 caracteres, obrigatório
 - `name`: Mínimo 3 caracteres, máximo 255, obrigatório
 - `role`: "admin" ou "user", opcional (padrão: "user")
 
 **Response 201:**
+
 ```json
 {
   "message": "Usuário registrado com sucesso",
@@ -67,6 +69,7 @@ Content-Type: application/json
 ```
 
 **Response 409:**
+
 ```json
 {
   "statusCode": 409,
@@ -82,10 +85,10 @@ Content-Type: application/json
 Faz login do usuário e retorna um token JWT.
 
 **Request:**
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
-
 {
   "email": "admin@cantinhoverde.com",
   "password": "Admin@123"
@@ -93,6 +96,7 @@ Content-Type: application/json
 ```
 
 **Response 200:**
+
 ```json
 {
   "message": "Login realizado com sucesso",
@@ -110,6 +114,7 @@ Content-Type: application/json
 ```
 
 **Response 401:**
+
 ```json
 {
   "statusCode": 401,
@@ -125,12 +130,14 @@ Content-Type: application/json
 Retorna dados do usuário autenticado.
 
 **Request:**
+
 ```http
 GET /api/auth/me
 Authorization: Bearer {token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "user": {
@@ -152,12 +159,14 @@ Authorization: Bearer {token}
 Verifica se o token JWT é válido.
 
 **Request:**
+
 ```http
 GET /api/auth/verify
 Authorization: Bearer {token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "valid": true,
@@ -191,11 +200,13 @@ Lista todos os produtos com suporte a busca, filtros, ordenação e paginação.
 | `limit` | number | Itens por página | 10 |
 
 **Request:**
+
 ```http
 GET /api/products?search=tomate&category=legume&sortBy=price&order=ASC&page=1&limit=10
 ```
 
 **Response 200:**
+
 ```json
 {
   "data": [
@@ -242,11 +253,13 @@ Busca um produto específico por ID.
 **Público:** Não requer autenticação
 
 **Request:**
+
 ```http
 GET /api/products/1
 ```
 
 **Response 200:**
+
 ```json
 {
   "product": {
@@ -265,6 +278,7 @@ GET /api/products/1
 ```
 
 **Response 404:**
+
 ```json
 {
   "statusCode": 404,
@@ -282,6 +296,7 @@ Cria um novo produto.
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 POST /api/products
 Authorization: Bearer {token}
@@ -298,6 +313,7 @@ Content-Type: application/json
 ```
 
 **Validações:**
+
 - `name`: String, obrigatório, máximo 255 caracteres
 - `category`: Enum "fruta", "verdura" ou "legume", obrigatório
 - `price`: Número >= 0, máximo 2 casas decimais, obrigatório
@@ -306,6 +322,7 @@ Content-Type: application/json
 - `imageUrl`: String, opcional
 
 **Response 201:**
+
 ```json
 {
   "message": "Produto criado com sucesso",
@@ -325,6 +342,7 @@ Content-Type: application/json
 ```
 
 **Response 400:**
+
 ```json
 {
   "statusCode": 400,
@@ -345,6 +363,7 @@ Atualiza um produto existente (parcial).
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 PATCH /api/products/1
 Authorization: Bearer {token}
@@ -357,6 +376,7 @@ Content-Type: application/json
 ```
 
 **Response 200:**
+
 ```json
 {
   "message": "Produto atualizado com sucesso",
@@ -384,13 +404,15 @@ Remove um produto permanentemente do banco de dados.
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 DELETE /api/products/1
 Authorization: Bearer {token}
 ```
 
 **Response 204:**
-```
+
+```text
 No Content
 ```
 
@@ -405,6 +427,7 @@ Atualiza a imagem de um produto.
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 PATCH /api/products/1/image
 Authorization: Bearer {token}
@@ -414,6 +437,7 @@ file: [arquivo binário]
 ```
 
 **Response 200:**
+
 ```json
 {
   "message": "Imagem atualizada com sucesso",
@@ -445,6 +469,7 @@ Faz upload de uma imagem.
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 POST /api/upload/image
 Authorization: Bearer {token}
@@ -454,10 +479,12 @@ file: [arquivo binário]
 ```
 
 **Restrições:**
+
 - Formatos permitidos: JPEG, JPG, PNG, WEBP
 - Tamanho máximo: 5MB
 
 **Response 200:**
+
 ```json
 {
   "message": "Imagem enviada com sucesso",
@@ -467,6 +494,7 @@ file: [arquivo binário]
 ```
 
 **Response 400:**
+
 ```json
 {
   "statusCode": 400,
@@ -484,12 +512,14 @@ Deleta uma imagem do servidor.
 **Autenticação:** Requerida (JWT)
 
 **Request:**
+
 ```http
 DELETE /api/upload/abc123def456.jpg
 Authorization: Bearer {token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "message": "Imagem deletada com sucesso"
@@ -554,6 +584,7 @@ Todas as respostas de erro seguem o padrão:
 ### Fluxo Completo: Criar Produto com Imagem
 
 **1. Login:**
+
 ```bash
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
@@ -561,6 +592,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 ```
 
 **2. Upload da Imagem:**
+
 ```bash
 curl -X POST http://localhost:3001/api/upload/image \
   -H "Authorization: Bearer {token}" \
@@ -568,6 +600,7 @@ curl -X POST http://localhost:3001/api/upload/image \
 ```
 
 **3. Criar Produto:**
+
 ```bash
 curl -X POST http://localhost:3001/api/products \
   -H "Authorization: Bearer {token}" \
@@ -582,6 +615,7 @@ curl -X POST http://localhost:3001/api/products \
 ```
 
 **4. Atualizar Produto:**
+
 ```bash
 curl -X PATCH http://localhost:3001/api/products/36 \
   -H "Authorization: Bearer {token}" \
@@ -590,6 +624,7 @@ curl -X PATCH http://localhost:3001/api/products/36 \
 ```
 
 **5. Deletar Produto:**
+
 ```bash
 curl -X DELETE http://localhost:3001/api/products/36 \
   -H "Authorization: Bearer {token}"
