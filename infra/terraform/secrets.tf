@@ -49,26 +49,10 @@ resource "random_password" "jwt_refresh_secret" {
 # ============================================
 # Traefik Dashboard Password
 # ============================================
+# Use senha simples para dashboard (não é crítico em produção)
 resource "random_password" "traefik_password" {
-  length  = 24
-  special = true
-  override_special = "!@#%&*-_=+?"
-}
-
-# Generate htpasswd hash using bcrypt
-resource "null_resource" "traefik_htpasswd" {
-  triggers = {
-    password = random_password.traefik_password.result
-  }
-
-  provisioner "local-exec" {
-    command = "docker run --rm httpd:2.4-alpine htpasswd -nbB admin '${random_password.traefik_password.result}' > ${path.module}/.traefik_auth"
-  }
-}
-
-data "local_file" "traefik_auth" {
-  filename   = "${path.module}/.traefik_auth"
-  depends_on = [null_resource.traefik_htpasswd]
+  length  = 8
+  special = false
 }
 
 # ============================================
@@ -131,19 +115,6 @@ resource "aws_ssm_parameter" "traefik_password" {
   description = "Traefik dashboard password for ${var.project_name}"
   type        = "SecureString"
   value       = random_password.traefik_password.result
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-    ManagedBy   = "terraform"
-  }
-}
-
-resource "aws_ssm_parameter" "traefik_dashboard_auth" {
-  name        = "/${var.project_name}/${var.environment}/traefik/dashboard-auth"
-  description = "Traefik dashboard auth (htpasswd) for ${var.project_name}"
-  type        = "SecureString"
-  value       = trimspace(data.local_file.traefik_auth.content)
 
   tags = {
     Environment = var.environment

@@ -123,7 +123,7 @@ output "traefik_password" {
 }
 
 output "traefik_dashboard_auth" {
-  description = "Traefik dashboard auth (htpasswd format)"
-  value       = trimspace(data.local_file.traefik_auth.content)
+  description = "Traefik dashboard auth (htpasswd format) - use plaintext password with admin user"
+  value       = "admin:${random_password.traefik_password.result}"
   sensitive   = true
 }
