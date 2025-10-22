@@ -78,6 +78,13 @@ jobs:
           traefik_subdomain    = "traefik"
           EOF
 
+      - name: Bootstrap Terraform Backend
+        working-directory: infra/terraform
+        run: |
+          # Run bootstrap script (idempotent - safe to run multiple times)
+          chmod +x bootstrap-backend.sh
+          ./bootstrap-backend.sh
+
       - name: Terraform Init
         working-directory: infra/terraform
         run: terraform init
