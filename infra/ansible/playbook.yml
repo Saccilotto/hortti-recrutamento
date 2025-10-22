@@ -11,11 +11,11 @@
     - vars/secrets.yml
 
   vars:
-    app_name: hortti-inventory
+    app_name: hortti-recrutamento
     app_dir: /opt/hortti-inventory
     app_user: ubuntu
     docker_registry: ghcr.io
-    github_username: "{{ github_repo_owner }}"
+    github_username: "{{ github_repo_owner | lower }}"
     image_tag: "{{ deploy_image_tag | default('latest') }}"
 
   pre_tasks:
