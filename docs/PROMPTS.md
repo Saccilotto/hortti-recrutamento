@@ -2789,6 +2789,66 @@ deploy:
 
 ---
 
+#### Prompt 11.5: Backend Healthcheck Failing - AppController Missing
+
+**Contexto:** Backend container unhealthy após 5+ minutos, endpoint `/api/health` retornando 404
+
+**Diagnóstico:**
+
+```bash
+docker exec hortti-backend-prod wget -O- http://localhost:3001/api/health
+# Output: 404 Not Found
+```
+
+**Causa:** `AppController` e `AppService` não registrados em `AppModule`
+
+**Solução:**
+
+```typescript
+// backend/src/app.module.ts
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  controllers: [AppController],
+  providers: [AppService],
+})
+```
+
+**Healthcheck corrigido para busybox wget:**
+
+```yaml
+# docker-compose-prod.yml
+healthcheck:
+  test: ["CMD-SHELL", "wget --spider -q http://localhost:3001/api/health || exit 1"]
+  interval: 10s
+  timeout: 5s
+  retries: 30
+  start_period: 40s
+```
+
+**Debug adicionado ao playbook:**
+
+```yaml
+- name: Check container status
+- name: Display container status  
+- name: Get backend logs if unhealthy
+- name: Display backend logs
+```
+
+**Teste local:** Backend healthy em 16.3s, endpoint retorna `{"status":"ok","timestamp":"...","uptime":30.9}`
+
+**Arquivos modificados:** 4
+
+- `backend/src/app.module.ts` - Registrado controller/service
+- `docker-compose-prod.yml` - Healthcheck wget
+- `infra/ansible/templates/docker-compose-prod.yml.j2` - Healthcheck wget
+- `infra/ansible/playbook.yml` - Debug tasks
+
+**Resultado:** Healthcheck funcionando, deploy pronto
+
+---
+
 **Última atualização:** 2025-10-22
 **Documentado por:** GitHub Copilot + Claude 4.5 Sonnet (VS Code)
-**Versão:** 1.5.1
+**Versão:** 1.6.0

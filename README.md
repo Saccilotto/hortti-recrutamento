@@ -228,8 +228,10 @@ cd backend && npm run test:cov # Cobertura
 - ✅ Correção de nomes de imagens Docker (lowercase)
 - ✅ Trigger automático de deploy (workflow_run)
 - ✅ Healthchecks otimizados (start_period, retries)
-- ✅ Endpoint /api/health no backend
-- ✅ Correção docker-compose (build → image)
+- ✅ Resource limits para prevenir timeout SSH
+- ✅ Registro de AppController/AppService no AppModule
+- ✅ Healthcheck com busybox wget (Alpine Linux)
+- ✅ Debug tasks no playbook Ansible
 
 **Características:**
 
@@ -255,6 +257,7 @@ feat: add initial frontend configuration and styling files
 docs: add comprehensive ENDPOINTS documentation
 chore: add .gitignore and Node 18 setup files
 fix: corrige deploy com imagens do GHCR e healthchecks
+fix: registra AppController no AppModule e corrige healthcheck
 ```
 
 ## 🌿 Branch de Entrega
@@ -269,6 +272,37 @@ git push origin submission/final
 ---
 
 ## 🔧 Troubleshooting
+
+### Problema: Backend container unhealthy
+
+**Sintoma:** Deploy falha com container `hortti-backend-prod` unhealthy após 5+ minutos
+
+**Causa:** Endpoint `/api/health` retorna 404 porque `AppController` não estava registrado no `AppModule`
+
+**Solução:**
+
+```typescript
+// backend/src/app.module.ts
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  controllers: [AppController],
+  providers: [AppService],
+})
+```
+
+**Healthcheck corrigido para Alpine Linux:**
+
+```yaml
+# docker-compose-prod.yml
+healthcheck:
+  test: ["CMD-SHELL", "wget --spider -q http://localhost:3001/api/health || exit 1"]
+```
+
+**Resultado:** Container healthy em 16.3s
+
+---
 
 ### Problema: Imagens não exibidas
 
@@ -295,7 +329,7 @@ export function getImageUrl(imageUrl: string | null | undefined): string | null 
 - [pages/products/index.tsx](frontend/pages/products/index.tsx#L127)
 - [pages/products/[id]/edit.tsx](frontend/pages/products/[id]/edit.tsx#L77)
 
-### Problema: Login com credenciais padrão não funciona
+---### Problema: Login com credenciais padrão não funciona
 
 **Sintoma:** Erro 401 ao tentar fazer login com `admin@cantinhoverde.com` / `Admin@123`
 
