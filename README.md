@@ -191,6 +191,62 @@ cd backend && npm run test:cov # Cobertura
 
 ---
 
+### Ferramentas de IA Utilizadas
+
+#### Sessões 1-10: Claude 4.5 Sonnet (Interface Web)
+
+**Período:** 2025-10-20 a 2025-10-22 (Sessões 1-10)
+
+**Escopo:**
+
+- ✅ Setup inicial do projeto
+- ✅ Configuração de ambiente e dependências
+- ✅ Implementação Backend (NestJS) e Frontend (Next.js)
+- ✅ Docker e Docker Compose
+- ✅ Correções de bugs (upload, login, imagens)
+- ✅ Infraestrutura completa (Terraform + Ansible + Traefik)
+- ✅ CI/CD (GitHub Actions)
+- ✅ Documentação extensiva
+
+**Características:**
+
+- Bom para planejamento e arquitetura
+- Explicações detalhadas e didáticas
+- Documentação completa
+- Menos integração com ferramentas de desenvolvimento
+
+**Resultado:** Base completa do projeto implementada
+
+---
+
+#### Sessão 11: GitHub Copilot + Claude 4.5 Sonnet (VS Code)
+
+**Período:** 2025-10-22 (Sessão 11)
+
+**Escopo:**
+
+- ✅ Correção de nomes de imagens Docker (lowercase)
+- ✅ Trigger automático de deploy (workflow_run)
+- ✅ Healthchecks otimizados (start_period, retries)
+- ✅ Endpoint /api/health no backend
+- ✅ Correção docker-compose (build → image)
+
+**Características:**
+
+- Integração perfeita com VS Code
+- Ferramentas de edição de código muito precisas
+- Contexto completo do workspace
+- Acesso direto a Git e terminal
+- Validação exata de mudanças de código
+
+**Resultado:** Deploy de produção funcionando completamente
+
+---
+
+**Documentação Completa:** Ver [docs/PROMPTS.md](docs/PROMPTS.md) para histórico detalhado de todas as 11 sessões.
+
+---
+
 ## 📝 Commits Semânticos
 
 ```plaintext
@@ -198,6 +254,7 @@ feat: add Docker and Docker Compose configurations
 feat: add initial frontend configuration and styling files
 docs: add comprehensive ENDPOINTS documentation
 chore: add .gitignore and Node 18 setup files
+fix: corrige deploy com imagens do GHCR e healthchecks
 ```
 
 ## 🌿 Branch de Entrega

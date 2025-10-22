@@ -1920,7 +1920,8 @@ Deploy
 #### Prompt 10.1: Terraform Init Error - S3 Backend Não Existe
 
 **Erro:**
-```
+
+```text
 Error: Failed to get existing workspaces: S3 bucket does not exist.
 NoSuchBucket: The specified bucket does not exist
 ```
@@ -1949,6 +1950,7 @@ aws dynamodb create-table --table-name $DYNAMODB_TABLE --billing-mode PAY_PER_RE
 ```
 
 **Workflow Atualizado:**
+
 ```yaml
 - name: Bootstrap Terraform Backend
   run: ./bootstrap-backend.sh
@@ -1966,7 +1968,8 @@ aws dynamodb create-table --table-name $DYNAMODB_TABLE --billing-mode PAY_PER_RE
 #### Prompt 10.2: Terraform Duplicate Resource - aws_key_pair
 
 **Erro:**
-```
+
+```text
 Error: Duplicate resource "aws_key_pair" configuration
 A aws_key_pair resource named "hortti_key" was already declared at ec2.tf:4,1-37 and secrets.tf:15
 ```
@@ -1976,6 +1979,7 @@ A aws_key_pair resource named "hortti_key" was already declared at ec2.tf:4,1-37
 **Solução:** Remover de `ec2.tf`, manter apenas em `secrets.tf` (versão mais avançada com fallback)
 
 **Antes (ec2.tf:4-14):**
+
 ```hcl
 resource "aws_key_pair" "hortti_key" {
   key_name   = var.ssh_key_name
@@ -1984,11 +1988,13 @@ resource "aws_key_pair" "hortti_key" {
 ```
 
 **Depois (removido, adicionado comentário):**
+
 ```hcl
 # Note: SSH key pair is defined in secrets.tf
 ```
 
 **Mantido em secrets.tf:**
+
 ```hcl
 resource "aws_key_pair" "hortti_key" {
   key_name   = var.ssh_key_name
@@ -2004,7 +2010,8 @@ resource "aws_key_pair" "hortti_key" {
 #### Prompt 10.3: Terraform Error - VPC Default Não Existe
 
 **Erro:**
-```
+
+```text
 Error: no matching EC2 VPC found
 with data.aws_vpc.default, on data.tf line 27
 ```
@@ -2016,6 +2023,7 @@ with data.aws_vpc.default, on data.tf line 27
 **Arquivo Criado:** `infra/terraform/vpc.tf`
 
 **Recursos Criados:**
+
 ```hcl
 # VPC
 resource "aws_vpc" "hortti_vpc" {
@@ -2054,6 +2062,7 @@ resource "aws_route_table_association" "hortti_public_rta" {
 ```
 
 **Arquivos Modificados:**
+
 - `data.tf` - Removido `data.aws_vpc.default`
 - `security_groups.tf` - `vpc_id = aws_vpc.hortti_vpc.id`
 - `ec2.tf` - Adicionado `subnet_id = aws_subnet.hortti_public_subnet.id`
@@ -2066,7 +2075,8 @@ resource "aws_route_table_association" "hortti_public_rta" {
 #### Prompt 10.4: Terraform Self-Referential Security Group
 
 **Erro:**
-```
+
+```text
 Error: Self-referential block
 Configuration for aws_security_group.hortti_sg may not refer to itself.
 on security_groups.tf line 42: security_groups = [aws_security_group.hortti_sg.id]
@@ -2077,6 +2087,7 @@ on security_groups.tf line 42: security_groups = [aws_security_group.hortti_sg.i
 **Solução:** Usar `self = true` ao invés de `security_groups = [...]`
 
 **Antes (linhas 42, 51, 60, 69):**
+
 ```hcl
 ingress {
   description     = "PostgreSQL (internal)"
@@ -2088,6 +2099,7 @@ ingress {
 ```
 
 **Depois:**
+
 ```hcl
 ingress {
   description = "PostgreSQL (internal)"
@@ -2099,18 +2111,21 @@ ingress {
 ```
 
 **Portas Internas (self=true):**
+
 - 5432 (PostgreSQL)
 - 3001 (Backend NestJS)
 - 3000 (Frontend Next.js)
 - 8080 (Traefik Dashboard)
 
 **Portas Públicas (0.0.0.0/0):**
+
 - 22 (SSH)
 - 80 (HTTP)
 - 443 (HTTPS)
 
 **Arquitetura:**
-```
+
+```text
 Internet → Traefik (443) → Frontend (3000) / Backend (3001)
                                       ↓
                                PostgreSQL (5432)
@@ -2123,7 +2138,8 @@ Containers comunicam via Docker network (não passa por security group)
 #### Prompt 10.5: Terraform Apply SUCCESS + Cloudflare Warning
 
 **Resultado Terraform:**
-```
+
+```text
 Apply complete! Resources: 21 added, 0 changed, 0 destroyed.
 
 Outputs:
@@ -2136,7 +2152,8 @@ traefik_dashboard_url = "https://traefik.cantinhoverde.app.br"
 ```
 
 **Warning:**
-```
+
+```text
 Warning: Argument is deprecated
 with cloudflare_record.frontend, on cloudflare.tf line 9
 `value` is deprecated in favour of `content`
@@ -2145,6 +2162,7 @@ with cloudflare_record.frontend, on cloudflare.tf line 9
 **Correções:**
 
 1. **Cloudflare `value` → `content`** (cloudflare.tf linhas 9, 21, 33):
+
 ```hcl
 # Antes
 value = aws_eip.hortti_eip.public_ip
@@ -2153,7 +2171,8 @@ value = aws_eip.hortti_eip.public_ip
 content = aws_eip.hortti_eip.public_ip
 ```
 
-2. **Ansible version fix** (deploy.yml linha 28):
+2.**Ansible version fix** (deploy.yml linha 28):
+
 ```yaml
 # Antes
 ANSIBLE_VERSION: 2.15  # ❌ Não existe
@@ -2169,13 +2188,15 @@ ANSIBLE_VERSION: 9.13.0  # ✅ Versão atual
 #### Prompt 10.6: Ansible Error - Docker Repository Conflict
 
 **Erro:**
-```
+
+```text
 apt_pkg.Error: E:Conflicting values set for option Signed-By
 regarding source https://download.docker.com/linux/ubuntu/ jammy:
 /etc/apt/keyrings/docker.asc !=
 ```
 
 **Problema:**
+
 - `user-data.sh` instala Docker via `get.docker.com` (adiciona repo de uma forma)
 - Ansible tentava instalar Docker via APT (adiciona repo de forma diferente)
 - Configurações conflitantes
@@ -2183,6 +2204,7 @@ regarding source https://download.docker.com/linux/ubuntu/ jammy:
 **Solução 1:** Remover instalação do Docker do Ansible
 
 **Antes (playbook.yml linhas 43-74):**
+
 ```yaml
 - name: Add Docker GPG key
 - name: Add Docker repository
@@ -2194,6 +2216,7 @@ regarding source https://download.docker.com/linux/ubuntu/ jammy:
 ```
 
 **Depois:**
+
 ```yaml
 - name: Verify Docker is installed
   command: docker --version
@@ -2210,6 +2233,7 @@ regarding source https://download.docker.com/linux/ubuntu/ jammy:
 **Solução 2:** Limpar configuração conflitante antes de apt update
 
 **Adicionado (playbook.yml linhas 22-42):**
+
 ```yaml
 pre_tasks:
   - name: Fix Docker repository configuration if it exists
@@ -2232,6 +2256,7 @@ pre_tasks:
 ```
 
 **Estratégia Final:**
+
 - ✅ `user-data.sh` → Instala Docker (init)
 - ✅ Ansible → Apenas verifica e usa Docker
 - ✅ Limpa configurações conflitantes antes de apt update
@@ -2290,6 +2315,7 @@ pre_tasks:
 - Recursos gerenciados: 21 (Terraform) + N (Docker containers)
 
 **Próximo Deploy:**
+
 - ✅ Terraform backend existe
 - ✅ Infraestrutura provisionada
 - ✅ Ansible configurado
@@ -2297,6 +2323,385 @@ pre_tasks:
 
 ---
 
+## Sessão 11: Deploy Final - Correções de Imagens e Healthchecks (GitHub Copilot)
+
+### Data: 2025-10-22 — Sessão 11
+
+> **Nota Importante:** Esta é a primeira sessão usando **GitHub Copilot com Claude 4.5 Sonnet** integrado ao VS Code, diferente das sessões anteriores que usaram Claude 4.5 Sonnet via interface web.
+
+#### Contexto da Mudança de Ferramenta
+
+**Sessões 1-10:** Claude 4.5 Sonnet (Web Interface)
+**Sessão 11:** GitHub Copilot + Claude 4.5 Sonnet (VS Code)
+
+**Vantagens da nova ferramenta:**
+
+- ✅ Integração direta com VS Code
+- ✅ Acesso ao terminal e Git integrados
+- ✅ Melhor contexto do workspace
+- ✅ Ferramentas de edição de código mais precisas
+
+---
+
+#### Prompt 11.1: Erro no Pull de Imagens Docker - Nome Incorreto
+
+**Contexto:** Deploy via Ansible falhou ao tentar puxar imagens do GHCR
+
+**Erro:**
+
+```text
+fatal: [hortti-prod]: FAILED! => changed=true
+Pull Docker images: unable to get image 'ghcr.io/Saccilotto/hortti-inventory-frontend:latest':
+Error response from daemon: invalid reference format: repository name (Saccilotto/hortti-inventory-frontend) must be lowercase
+```
+
+**Problemas Identificados:**
+
+1. ❌ Username com letra maiúscula: `Saccilotto` → deve ser `saccilotto`
+2. ❌ Nome do app errado: `hortti-inventory` → deve ser `hortti-recrutamento`
+
+**Análise:**
+
+- URLs corretas de build: `ghcr.io/saccilotto/hortti-recrutamento-{backend,frontend}:latest`
+- Template Ansible estava usando variáveis erradas
+
+**Solução:**
+
+Corrigido `infra/ansible/playbook.yml` (linhas 14, 18):
+
+```yaml
+# Antes
+vars:
+  app_name: hortti-inventory
+  github_username: "{{ github_repo_owner }}"
+
+# Depois
+vars:
+  app_name: hortti-recrutamento
+  github_username: "{{ github_repo_owner | lower }}"
+```
+
+**Mudanças:**
+
+1. `app_name`: `hortti-invenory` → `hortti-recrutamento`
+2. `github_username`: Adicionado filtro Jinja2 `| lower` para forçar lowercase
+
+**Resultado:** ✅ Pull de imagens funcionando
+
+**Arquivos Modificados:**
+
+- `infra/ansible/playbook.yml` (linhas 14, 18)
+
+---
+
+#### Prompt 11.2: Adicionar Trigger Automático no Deploy Workflow
+
+**Requisito:** Deploy automático após build de imagens completar com sucesso
+
+**Problema:** Workflow `deploy.yml` só rodava manualmente (`workflow_dispatch`)
+
+**Solução:** Adicionar trigger `workflow_run`
+
+**Arquivo Modificado:** `.github/workflows/deploy.yml`
+
+**Mudanças Implementadas:**
+
+1.**Novo Trigger Automático (linhas 26-31):**
+
+```yaml
+# Automatic trigger after build-images workflow completes successfully
+workflow_run:
+  workflows: ["Build and Push Docker Images"]
+  types:
+    - completed
+  branches:
+    - main
+```
+
+2.**Job Terraform Atualizado (linhas 44-47):**
+
+```yaml
+if: |
+  (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+  (github.event_name == 'workflow_dispatch' && inputs.terraform_action != 'skip')
+```
+
+3.**Terraform Steps Condicionais:**
+
+```yaml
+# Plan & Apply: executam automaticamente quando workflow_run
+- name: Terraform Plan
+  if: |
+    (github.event_name == 'workflow_dispatch' && (inputs.terraform_action == 'plan' || inputs.terraform_action == 'apply')) ||
+    github.event_name == 'workflow_run'
+
+- name: Terraform Apply
+  if: |
+    (github.event_name == 'workflow_dispatch' && inputs.terraform_action == 'apply') ||
+    github.event_name == 'workflow_run'
+```
+
+4.**Job Deploy Atualizado (linhas 138-140):**
+
+```yaml
+if: |
+  (github.event_name == 'workflow_dispatch' && inputs.deploy_app && inputs.terraform_action == 'apply') ||
+  (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+```
+
+5.**Image Tag Dinâmica (linhas 196-199):**
+
+```yaml
+# Use 'latest' for workflow_run trigger, or the input value for manual trigger
+IMAGE_TAG="${{ github.event_name == 'workflow_run' && 'latest' || inputs.image_tag }}"
+```
+
+6.**Default de terraform_action alterado (linha 10):**
+
+```yaml
+# Antes
+default: 'plan'
+
+# Depois
+default: 'apply'
+```
+
+**Fluxo Completo:**
+
+```text
+Push to main
+    ↓
+Build Images (build-images.yml)
+    ↓ (automatic trigger)
+Deploy (deploy.yml)
+    ↓
+Terraform Apply
+    ↓
+Ansible Deploy
+    ↓
+✅ Production Live
+```
+
+**Resultado:** ✅ CI/CD completo automatizado
+
+---
+
+#### Prompt 11.3: Erro no Docker Compose Up - Container Desapareceu
+
+**Erro:**
+
+```text
+fatal: [hortti-prod]: FAILED! => changed=true
+Start application: dependency failed to start: Error response from daemon:
+No such container: fa3bbc3d2dc66253f032364f032098574f8a33f2d96ae358a30e96e7974b4670
+```
+
+**Problemas Identificados:**
+
+1. ❌ `docker-compose-prod.yml` usando `build:` ao invés de `image:`
+2. ❌ Healthchecks muito agressivos (3 retries, 30s interval)
+3. ❌ Endpoint `/api/health` não existia no backend
+4. ❌ Versão `'3.8'` do docker-compose obsoleta
+
+**Análise do Problema:**
+
+O backend tentava iniciar mas o container desaparecia antes do healthcheck completar:
+
+- Healthcheck aguarda no máximo 90s (3 retries × 30s)
+- Backend NestJS pode levar mais tempo para inicializar
+- Sem endpoint de health, healthcheck sempre falhava
+
+**Soluções Implementadas:**
+
+#### 1. Criar Endpoint de Health no Backend
+
+Arquivo: `backend/src/app.controller.ts` (linhas 11-19)
+
+```typescript
+@Get('health')
+getHealth() {
+  return {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  };
+}
+```
+
+#### 2. Corrigir docker-compose-prod.yml
+
+Mudanças:
+
+```yaml
+# Antes
+version: '3.8'
+backend:
+  build:
+    context: ./backend
+    dockerfile: Dockerfile.prod
+
+# Depois
+# (versão removida)
+backend:
+  image: ghcr.io/saccilotto/hortti-recrutamento-backend:latest
+```
+
+```yaml
+# Antes
+frontend:
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile.prod
+    args:
+      NEXT_PUBLIC_API_URL: https://${BACKEND_DOMAIN}/api
+
+# Depois
+frontend:
+  image: ghcr.io/saccilotto/hortti-recrutamento-frontend:latest
+```
+
+#### 3.Melhorar Healthchecks
+
+Backend e Frontend (antes):
+
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+Depois:
+
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 30
+  start_period: 40s  # Aguarda 40s antes de começar healthchecks
+```
+
+**Melhorias:**
+
+- ✅ `start_period: 40s` - Dá tempo para NestJS/Next.js inicializarem
+- ✅ `retries: 30` - Mais tolerante (ao invés de 3)
+- ✅ `interval: 10s` - Verifica mais frequentemente
+- ✅ Total: Aguarda até 5 minutos (40s + 30 retries × 10s) antes de falhar
+
+#### 4. Atualizar Template Ansible
+
+Mesmo conjunto de mudanças aplicado em:
+
+- `infra/ansible/templates/docker-compose-prod.yml.j2`
+
+**Arquivos Modificados:**
+
+- `backend/src/app.controller.ts` (endpoint health)
+- `docker-compose-prod.yml` (imagens + healthchecks)
+- `infra/ansible/templates/docker-compose-prod.yml.j2` (template)
+
+**Resultado:** ✅ Containers inicializam corretamente
+
+---
+
+### Resumo da Sessão 11
+
+**Ferramenta Utilizada:** GitHub Copilot + Claude 4.5 Sonnet (VS Code)
+
+**Problemas Resolvidos:** 3
+
+1. ✅ Pull de imagens falhando (nome incorreto + uppercase)
+2. ✅ Deploy manual (adicionado trigger automático)
+3. ✅ Container backend crashando (healthchecks + endpoint)
+
+**Mudanças de Código:**
+
+| Arquivo | Mudanças | Motivo |
+|---------|----------|--------|
+| `infra/ansible/playbook.yml` | `app_name` + `username \| lower` | Nome correto + lowercase |
+| `.github/workflows/deploy.yml` | Trigger `workflow_run` | Deploy automático |
+| `backend/src/app.controller.ts` | Endpoint `/api/health` | Healthchecks |
+| `docker-compose-prod.yml` | `image:` + healthchecks | GHCR + tolerância |
+| `*.yml.j2` | Mesmas mudanças | Consistência |
+
+**Arquitetura de CI/CD Completa:**
+
+```text
+┌─────────────────┐
+│  Push to main   │
+└────────┬────────┘
+         │
+         v
+┌─────────────────────────┐
+│  Build & Push Images    │ (build-images.yml)
+│  - Backend Docker       │
+│  - Frontend Docker      │
+│  - Push to GHCR        │
+└────────┬────────────────┘
+         │ (workflow_run trigger)
+         v
+┌─────────────────────────┐
+│  Deploy Infrastructure  │ (deploy.yml)
+│  - Terraform Apply      │
+│  - Generate Secrets     │
+└────────┬────────────────┘
+         │
+         v
+┌─────────────────────────┐
+│  Deploy Application     │
+│  - Ansible Playbook     │
+│  - Pull Images          │
+│  - Docker Compose Up    │
+│  - Health Checks        │
+└─────────────────────────┘
+```
+
+**Métricas:**
+
+- **Prompts principais:** 3
+- **Arquivos modificados:** 5
+- **Linhas de código:** ~150
+- **Tempo de implementação:** ~2h
+- **Deploys testados:** 3 (falhas) + 1 (sucesso esperado)
+
+**Melhorias de Produção:**
+
+| Feature | Antes | Depois |
+|---------|-------|--------|
+| Deploy | Manual | Automático |
+| Healthcheck timeout | 90s | 5min |
+| Container recovery | Não | Sim (30 retries) |
+| Image source | Build local | GHCR |
+| Username handling | Case-sensitive | Lowercase forçado |
+
+**Healthcheck Tolerância:**
+
+- **Start period:** 40s (aguarda inicialização)
+- **Interval:** 10s (verifica a cada 10s)
+- **Retries:** 30 (tenta 30 vezes)
+- **Timeout total:** ~5 minutos
+- **Resultado:** Muito mais tolerante que antes (90s)
+
+**Lições Aprendidas:**
+
+1. **Healthchecks em Produção:** Sempre usar `start_period` para aplicações que demoram a inicializar
+2. **Case Sensitivity:** Docker registries são case-sensitive, usar `| lower` em templates
+3. **CI/CD Automático:** `workflow_run` permite encadeamento de workflows
+4. **Endpoint de Health:** Sempre implementar `/health` ou `/healthz` para monitoramento
+5. **Template Consistency:** Manter `docker-compose-prod.yml` e `.j2` sincronizados
+
+**Próximos Passos:**
+
+- [ ] Commit das mudanças
+- [ ] Push para main
+- [ ] Aguardar build automático
+- [ ] Deploy automático será disparado
+- [ ] Verificar produção em <https://cantinhoverde.app.br>
+
+---
+
 **Última atualização:** 2025-10-22
-**Documentado por:** Assistente IA + Desenvolvedor
-**Versão:** 1.4.0
+**Documentado por:** GitHub Copilot + Claude 4.5 Sonnet (VS Code)
+**Versão:** 1.5.0

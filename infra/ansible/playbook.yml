@@ -146,6 +146,12 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+      async: 600  # 10 minutos de timeout
+      poll: 10    # Checa a cada 10 segundos
+
+    - name: Wait for containers to initialize
+      pause:
+        seconds: 30
 
     - name: Wait for services to be healthy
       command: docker compose ps
@@ -154,8 +160,8 @@
       become_user: "{{ app_user }}"
       register: compose_ps
       until: compose_ps.rc == 0
-      retries: 10
-      delay: 10
+      retries: 20
+      delay: 15
 
     # ============================================
     # Cleanup
