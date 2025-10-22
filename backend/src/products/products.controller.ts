@@ -13,6 +13,7 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
@@ -83,13 +84,29 @@ export class ProductsController {
 
   @Patch(':id/image')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|webp/;
+        const mimeType = allowedTypes.test(file.mimetype);
+        const extName = allowedTypes.test(file.originalname.slice(-5).toLowerCase());
+
+        if (mimeType && extName) {
+          return cb(null, true);
+        }
+        cb(new Error('Apenas imagens são permitidas (jpeg, jpg, png, webp)'), false);
+      },
+      limits: {
+        fileSize: 5242880, // 5MB
+      },
+    }),
+  )
   async updateImage(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
-      throw new Error('Nenhum arquivo foi enviado');
+      throw new BadRequestException('Nenhum arquivo foi enviado');
     }
 
     const imageUrl = this.uploadService.getFileUrl(file.filename);
