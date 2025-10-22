@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import Card from '../../../components/Card';
 import Loading from '../../../components/Loading';
-import Button from '../../../components/Button';
 import ProductForm from '../../../components/ProductForm';
 import { productsService, Product, CreateProductData } from '../../../services/products.service';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -97,7 +96,11 @@ export default function EditProduct() {
 
         <Card>
           <ProductForm
-            initialData={product}
+            initialData={{
+              ...product,
+              description: product.description ?? undefined,
+              imageUrl: product.imageUrl ?? undefined,
+            }}
             onSubmit={handleUpdate}
             submitText="Salvar Alterações"
           />
