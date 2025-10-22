@@ -55,8 +55,6 @@ jobs:
       acme_email: ${{ steps.tf_output.outputs.email }}
       traefik_dashboard_auth: ${{ steps.tf_output.outputs.traefik_auth }}
       traefik_password: ${{ steps.tf_output.outputs.traefik_pass }}
-      jwt_refresh_secret: ${{ steps.tf_output.outputs.jwt_ref }}
-      acme_email: ${{ steps.tf_output.outputs.email }}
 
     steps:
       - name: Checkout repository
