@@ -33,40 +33,40 @@ resource "aws_security_group" "hortti_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # PostgreSQL (interno - apenas da própria SG)
+  # PostgreSQL (interno - apenas localhost/containers na mesma instância)
   ingress {
-    description     = "PostgreSQL (internal)"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.hortti_sg.id]
+    description = "PostgreSQL (internal)"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    self        = true
   }
 
-  # Backend NestJS (interno - apenas da própria SG)
+  # Backend NestJS (interno - apenas localhost/containers na mesma instância)
   ingress {
-    description     = "Backend API (internal)"
-    from_port       = 3001
-    to_port         = 3001
-    protocol        = "tcp"
-    security_groups = [aws_security_group.hortti_sg.id]
+    description = "Backend API (internal)"
+    from_port   = 3001
+    to_port     = 3001
+    protocol    = "tcp"
+    self        = true
   }
 
-  # Frontend Next.js (interno - apenas da própria SG)
+  # Frontend Next.js (interno - apenas localhost/containers na mesma instância)
   ingress {
-    description     = "Frontend (internal)"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.hortti_sg.id]
+    description = "Frontend (internal)"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    self        = true
   }
 
-  # Traefik Dashboard (interno - apenas da própria SG)
+  # Traefik Dashboard (interno - apenas localhost/containers na mesma instância)
   ingress {
-    description     = "Traefik Dashboard (internal)"
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.hortti_sg.id]
+    description = "Traefik Dashboard (internal)"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    self        = true
   }
 
   # Allow all outbound traffic
