@@ -21,7 +21,7 @@
   pre_tasks:
     - name: Debug - Display Traefik credentials
       debug:
-        msg: "Traefik Dashboard Auth: {{ traefik_dashboard_auth }}"
+        msg: "Traefik Dashboard Password: {{ traefik_dashboard_password }}"
 
     - name: Fix Docker repository configuration if it exists
       shell: |
