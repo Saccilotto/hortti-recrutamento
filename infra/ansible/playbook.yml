@@ -138,10 +138,19 @@
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    - name: Stop existing containers
-      command: docker compose down
+    - name: Stop existing containers with docker compose
+      command: docker compose down --remove-orphans
       args:
         chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      ignore_errors: yes
+
+    - name: Force remove any remaining containers by name
+      shell: |
+        docker rm -f hortti-traefik 2>/dev/null || true
+        docker rm -f hortti-backend-prod 2>/dev/null || true
+        docker rm -f hortti-frontend-prod 2>/dev/null || true
+        docker rm -f hortti-db-prod 2>/dev/null || true
       become_user: "{{ app_user }}"
       ignore_errors: yes
 
