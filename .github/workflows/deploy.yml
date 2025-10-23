@@ -144,9 +144,11 @@ jobs:
           echo "jwt_ref=$(terraform output -raw jwt_refresh_secret)" >> $GITHUB_OUTPUT
           echo "email=$(terraform output -raw acme_email)" >> $GITHUB_OUTPUT
           # Use heredoc for traefik_auth to prevent shell variable expansion ($2b$ → b2$)
-          echo "traefik_auth<<EOF" >> $GITHUB_OUTPUT
-          terraform output -raw traefik_dashboard_auth >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "traefik_auth<<EOF"
+            terraform output -raw traefik_dashboard_auth || echo ""
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
           echo "traefik_pass=$(terraform output -raw traefik_password)" >> $GITHUB_OUTPUT
 
   deploy:
