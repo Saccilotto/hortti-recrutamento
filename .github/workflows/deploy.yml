@@ -208,7 +208,8 @@ jobs:
           cloudflare_dns_token: "${{ secrets.CLOUDFLARE_API_TOKEN }}"
           cloudflare_zone_token: "${{ secrets.CLOUDFLARE_API_TOKEN }}"
           acme_email: "${{ needs.terraform.outputs.acme_email }}"
-          traefik_dashboard_auth: "${{ needs.terraform.outputs.traefik_dashboard_auth }}"
+          traefik_dashboard_auth: "${{ needs.terraform.outputs.traefik_auth }}"
+          traefik_dashboard_password: "${{ needs.terraform.outputs.traefik_pass }}"
           EOF
 
       - name: Wait for EC2 to be ready

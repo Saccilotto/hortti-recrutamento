@@ -12,7 +12,7 @@
 
   vars:
     app_name: hortti-recrutamento
-    app_dir: /opt/hortti-inventory
+    app_dir: /opt/hortti-recrutamento
     app_user: ubuntu
     docker_registry: ghcr.io
     github_username: "{{ github_repo_owner | lower }}"

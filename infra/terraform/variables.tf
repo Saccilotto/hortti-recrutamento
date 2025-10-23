@@ -82,3 +82,10 @@ variable "traefik_subdomain" {
   type        = string
   default     = "traefik"
 }
+
+variable "traefik_dashboard_password" {
+  description = "Password for Traefik dashboard (leave empty for no auth)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
