@@ -137,6 +137,8 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+      async: 900  # 15 minutes timeout for pulling images
+      poll: 10    # Check every 10 seconds
 
     - name: Stop existing containers with docker compose
       command: docker compose down --remove-orphans
